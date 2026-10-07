@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import type { CharacterCard, DocEntry, FileInfo, ProjectMeta, RecentProject } from '../types'
+import type { CharacterCard, DocEntry, FileInfo, InfoCard, ProjectMeta, RecentProject } from '../types'
 import { getFS, setFS, WebFSAdapter } from '../core/fs'
 import { countWords, idbSet, lsGet, lsSet } from '../core/storage'
 import { useEditorStore } from './editor'
@@ -11,6 +11,7 @@ export const PROJECT_TREE_PREVIEW = [
   { name: 'outline.md', note: '# 剧情大纲', dir: false },
   { name: 'chapters/', note: '# 正文文档', dir: true },
   { name: 'characters/', note: '# 人物库', dir: true },
+  { name: 'worldview/', note: '# 世界观库', dir: true },
   { name: 'notes/', note: '# 随笔 / 资料', dir: true },
 ]
 
@@ -21,7 +22,9 @@ interface ProjectState {
   isDemo: boolean
   /** 项目内 markdown 文档（chapters/ + notes/） */
   docs: DocEntry[]
-  characters: CharacterCard[]
+  /** 人物库与世界观库共用同一卡片结构（characters/ 与 worldview/ 目录） */
+  characters: InfoCard[]
+  worldview: InfoCard[]
   outlinePath: string
   stats: { docCount: number; wordCount: number }
 }
@@ -33,6 +36,7 @@ export const useProjectStore = defineStore('project', {
     isDemo: false,
     docs: [],
     characters: [],
+    worldview: [],
     outlinePath: 'outline.md',
     stats: { docCount: 0, wordCount: 0 },
   }),
@@ -97,6 +101,7 @@ export const useProjectStore = defineStore('project', {
         await fs.writeFile('outline.md', `# ${trimmed} · 剧情大纲\n\n`)
         await fs.createDir('chapters')
         await fs.createDir('characters')
+        await fs.createDir('worldview')
         await fs.createDir('notes')
       }
       await this.openWithHandle(dir)
@@ -154,24 +159,33 @@ export const useProjectStore = defineStore('project', {
         cur.wordCount = this.stats.wordCount
         lsSet('recentProjects', recent)
       }
-      await this.loadCharacters()
+      await this.loadCards('characters')
+      await this.loadCards('worldview')
     },
 
-    /** 人物库：解析 characters/*.md 为卡片（第一版字段约定见 parseCharacterMd） */
-    async loadCharacters() {
+    /**
+     * 卡片库通用加载：人物库（characters/）与世界观库（worldview/）共用。
+     * md 字段约定见 parseCardMd。
+     */
+    async loadCards(folder: 'characters' | 'worldview') {
       const fs = getFS()
       let files: FileInfo[] = []
       try {
-        files = (await fs.listDir('characters')).filter((f) => f.kind === 'file' && /\.md$/i.test(f.name))
+        files = (await fs.listDir(folder)).filter((f) => f.kind === 'file' && /\.md$/i.test(f.name))
       } catch {
         return
       }
-      const cards: CharacterCard[] = []
+      const cards: InfoCard[] = []
       for (const f of files) {
         const text = await fs.readFile(f.path).catch(() => '')
-        cards.push(parseCharacterMd(f.path, text))
+        cards.push(parseCardMd(f.path, text))
       }
-      this.characters = cards
+      this[folder] = cards
+    },
+
+    /** 兼容别名 */
+    async loadCharacters() {
+      await this.loadCards('characters')
     },
 
     async readOutline(): Promise<string> {
@@ -189,14 +203,15 @@ export const useProjectStore = defineStore('project', {
       this.isDemo = false
       this.docs = []
       this.characters = []
+      this.worldview = []
       void import('../services/session').then((m) => m.clearSession())
     },
   },
 })
 
-/** 人物 md 字段约定：frontmatter 风格的第一行键值，如 `角色: 主角` */
-export function parseCharacterMd(path: string, text: string): CharacterCard {
-  const card: CharacterCard = { name: '', role: '', identity: '', tags: [], description: '', filePath: path }
+/** 卡片 md 字段约定：frontmatter 风格的键值行。人物库与世界观库共用同一结构 */
+export function parseCardMd(path: string, text: string): InfoCard {
+  const card: InfoCard = { name: '', role: '', identity: '', tags: [], description: '', filePath: path }
   const lines = text.split('\n')
   const body: string[] = []
   for (const line of lines) {
@@ -205,11 +220,11 @@ export function parseCharacterMd(path: string, text: string): CharacterCard {
       const key = kv[1].trim()
       const value = kv[2].trim()
       if (key === '姓名' || key === '名字' || key === '名称') card.name = value
-      else if (key === '角色') card.role = value
+      else if (key === '角色' || key === '类别') card.role = value
       else if (key === '身份') card.identity = value
       else if (key === '标签') card.tags = value.split(/[,，、]/).map((t) => t.trim()).filter(Boolean)
       else body.push(line)
-    } else if (kv && kv[1].trim() === '角色' && !card.role) {
+    } else if (kv && (kv[1].trim() === '角色' || kv[1].trim() === '类别') && !card.role) {
       card.role = kv[2].trim()
     } else {
       body.push(line)
@@ -221,6 +236,19 @@ export function parseCharacterMd(path: string, text: string): CharacterCard {
   return card
 }
 
+/** 兼容别名 */
+export const parseCharacterMd = parseCardMd
+
+export function cardMdTemplate(
+  card: Partial<InfoCard>,
+  labels: { name?: string; role?: string } = {},
+): string {
+  const nameLabel = labels.name ?? '姓名'
+  const roleLabel = labels.role ?? '角色'
+  return `# ${card.name ?? ''}\n\n${nameLabel}: ${card.name ?? ''}\n${roleLabel}: ${card.role ?? ''}\n身份: ${card.identity ?? ''}\n标签: ${(card.tags ?? []).join('、')}\n\n${card.description ?? ''}\n`
+}
+
+/** 兼容别名 */
 export function characterMdTemplate(card: Partial<CharacterCard>): string {
-  return `# ${card.name ?? ''}\n\n姓名: ${card.name ?? ''}\n角色: ${card.role ?? ''}\n身份: ${card.identity ?? ''}\n标签: ${(card.tags ?? []).join('、')}\n\n${card.description ?? ''}\n`
+  return cardMdTemplate(card)
 }

@@ -37,6 +37,7 @@ const DEFAULT_SIDE: Record<string, Side> = {
   docs: 'left',
   outline: 'left',
   characters: 'right',
+  worldview: 'right',
   chat: 'right',
   browser: 'right',
 }

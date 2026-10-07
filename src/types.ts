@@ -65,15 +65,19 @@ export interface SelectionContext {
   fullText: string
 }
 
-/** 人物库卡片（第一版：由 characters/ 下的 md 文件解析出卡片效果） */
-export interface CharacterCard {
+/** 通用资料卡：人物库 / 世界观库共用的数据结构（md 文件 ⇄ 卡片） */
+export interface InfoCard {
   name: string
-  role: string // 主角 / 配角 / 反派 / 其他
+  /** 人物：主角/配角/反派/其他；世界观：地点/组织/物品/设定/其他 */
+  role: string
   identity: string
   tags: string[]
   description: string
   filePath: string
 }
+
+/** 兼容别名：人物库即 InfoCard */
+export type CharacterCard = InfoCard
 
 /** 大纲树节点（由 outline.md 标题层级解析） */
 export interface OutlineNode {

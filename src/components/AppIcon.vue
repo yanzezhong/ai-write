@@ -117,6 +117,10 @@
       <path d="m12 3 9 5-9 5-9-5 9-5Z" />
       <path d="m3 13 9 5 9-5" />
     </template>
+    <template v-else-if="name === 'world'">
+      <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
+      <path d="M9 4v14M15 6v14" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />
     </template>

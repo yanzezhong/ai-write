@@ -31,6 +31,7 @@ const DEFAULTS: LayoutState = {
     library: 'left',
     notes: 'left',
     characters: 'right',
+    worldview: 'right',
     chat: 'right',
     browser: 'right',
   },

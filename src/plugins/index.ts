@@ -49,6 +49,12 @@ export const APP_PLUGINS: AppPlugin[] = [
     component: () => import('../apps/CharactersApp.vue'),
   },
   {
+    id: 'worldview',
+    name: '世界观',
+    icon: 'world',
+    component: () => import('../apps/WorldviewApp.vue'),
+  },
+  {
     id: 'chat',
     name: 'AI 聊天',
     icon: 'sparkles',
