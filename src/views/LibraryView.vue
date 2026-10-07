@@ -161,7 +161,7 @@
             </div>
           </div>
 
-          <div class="pv-body">
+          <div class="pv-body" data-viewer-root>
             <div v-if="binary" class="binary-box">
               <AppIcon name="file" :size="30" />
               <p>「{{ library.previewFile }}」是 {{ extOf(library.previewFile).toUpperCase() }} 文件，不支持在线预览</p>
@@ -214,6 +214,10 @@
         </div>
       </div>
     </Teleport>
+
+    <!-- 只读预览中的选中 AI（仅复制；插入/替换对只读资料不可用） -->
+    <SelectionToolbar @action="openAIDialog" />
+    <AIDialog v-if="aiDialog" :action-id="aiDialog.actionId" read-only @close="aiDialog = null" />
   </div>
 </template>
 
@@ -221,6 +225,8 @@
 import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
+import SelectionToolbar from '../components/SelectionToolbar.vue'
+import AIDialog from '../components/AIDialog.vue'
 import { renderMd } from '../services/md'
 import { pickDirectory } from '../services/picker'
 import { useLibraryStore } from '../stores/library'
@@ -232,6 +238,12 @@ const router = useRouter()
 const project = useProjectStore()
 const library = useLibraryStore()
 const viewer = useViewerStore()
+
+const aiDialog = ref<{ actionId: string | null } | null>(null)
+
+function openAIDialog(payload: { actionId: string; source: 'editor' | 'viewer' }) {
+  aiDialog.value = { actionId: payload.actionId }
+}
 
 const busy = ref(false)
 const error = ref('')

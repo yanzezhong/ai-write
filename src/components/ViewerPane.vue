@@ -19,7 +19,7 @@
       </button>
     </header>
 
-    <div class="vp-body">
+    <div class="vp-body" data-viewer-root>
       <template v-if="tab">
         <div v-if="error" class="vp-error">⚠ {{ error }}</div>
         <div v-else-if="!library.isText(tab.path)" class="vp-binary">

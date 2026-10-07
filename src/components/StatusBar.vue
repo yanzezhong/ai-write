@@ -43,8 +43,15 @@ const layout = useLayoutStore()
 const provider = computed(() => ai.activeProvider)
 const modeLabel = computed(() => (editor.mode === 'wysiwyg' ? '所见即所得' : '源码模式'))
 
-/** selBox 变化时重新读取选区（桥接读取是幂等的） */
-const selCtx = computed(() => (editor.selBox ? editor.getSelection() : null))
+/** selBox 变化时重新读取选区。资料库窗格的选区没有编辑器桥接，直接读 DOM */
+const selCtx = computed<{ text: string } | null>(() => {
+  if (!editor.selBox) return null
+  if (editor.selSource === 'viewer') {
+    const text = window.getSelection()?.toString() ?? ''
+    return text ? { text } : null
+  }
+  return editor.getSelection()
+})
 </script>
 
 <style scoped>

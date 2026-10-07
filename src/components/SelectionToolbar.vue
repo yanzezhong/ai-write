@@ -23,31 +23,34 @@ import AppIcon from './AppIcon.vue'
 import { PRESET_ACTIONS } from '../ai/presets'
 import { useEditorStore } from '../stores/editor'
 
-const emit = defineEmits<{ action: [actionId: string] }>()
+const emit = defineEmits<{ action: [{ actionId: string; source: 'editor' | 'viewer' }] }>()
 
 const editor = useEditorStore()
 const actions = PRESET_ACTIONS
 
 const pos = ref<{ x: number; y: number } | null>(null)
 const toolbar = ref<HTMLDivElement | null>(null)
+/** 当前选区宿主：编辑区（结果可落回）或资料库阅读窗格（只读） */
+let source: 'editor' | 'viewer' = 'editor'
 
 const TOOLBAR_GAP = 10
 const TOOLBAR_H = 40
 const TOOLBAR_W_ESTIMATE = 430
 
-function editorRoot(): HTMLElement | null {
-  return document.querySelector('[data-editor-root]')
+function hostOf(node: Node | null): 'editor' | 'viewer' | null {
+  // 选区锚点通常是文本节点，向上取元素再匹配宿主
+  const el = node instanceof Element ? node : node?.parentElement
+  if (!el) return null
+  if (el.closest('[data-viewer-root]')) return 'viewer'
+  if (el.closest('[data-editor-root]')) return 'editor'
+  return null
 }
 
-function insideEditor(node: Node | null): boolean {
-  const root = editorRoot()
-  return !!(root && node && root.contains(node))
-}
-
-/** 由 DOM 选区定位工具条（精确取词走 editor 桥接） */
+/** 由 DOM 选区定位工具条（编辑区的精确取词/落回走 editor 桥接） */
 function syncFromDomSelection() {
   const sel = window.getSelection()
-  if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !insideEditor(sel.anchorNode)) {
+  const host = sel && sel.anchorNode ? hostOf(sel.anchorNode) : null
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0 || !host) {
     hide()
     return
   }
@@ -56,6 +59,8 @@ function syncFromDomSelection() {
     hide()
     return
   }
+  source = host
+  editor.setSelSource(host)
   editor.setSelBox({ x: rect.x, y: rect.y, width: rect.width, height: rect.height })
   placeAbove(rect.x, rect.y, rect.width)
 }
@@ -70,14 +75,21 @@ function placeAbove(x: number, y: number, width: number) {
 function hide() {
   pos.value = null
   editor.setSelBox(null)
+  editor.setSelSource(null)
 }
 
-/** 右键：有选区时唤起工具条（阻止默认菜单） */
+/** 右键：有选区时唤起工具条（阻止默认菜单）。资料库窗格没有编辑器桥接，看 DOM 选区 */
 function onContextMenu(e: MouseEvent) {
-  if (!insideEditor(e.target as Node)) return
-  const ctx = editor.getSelection()
-  if (!ctx) return
+  const host = hostOf(e.target as Node)
+  if (!host) return
+  if (host === 'editor') {
+    if (!editor.getSelection()) return
+  } else if (!window.getSelection()?.toString()) {
+    return
+  }
   e.preventDefault()
+  source = host
+  editor.setSelSource(host)
   placeAbove(e.clientX - 60, e.clientY - TOOLBAR_H - 4, 120)
 }
 
@@ -91,7 +103,7 @@ function onKeydown(e: KeyboardEvent) {
 
 function run(actionId: string) {
   hide()
-  emit('action', actionId)
+  emit('action', { actionId, source })
 }
 
 onMounted(() => {

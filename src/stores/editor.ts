@@ -21,6 +21,8 @@ interface EditorState {
   cursor: { line: number; col: number } | null
   /** 编辑区内存在非空选区时的浮动工具条锚点（视口坐标）；null 表示无选区 */
   selBox: { x: number; y: number; width: number; height: number } | null
+  /** 当前选区来自哪里：编辑区（可落回）或资料库阅读窗格（只读） */
+  selSource: 'editor' | 'viewer' | null
   /** 由 EditorPane 注册的选区桥接函数 */
   _getSelection: (() => SelectionContext | null) | null
   _replaceRange: ((start: number, end: number, text: string) => void) | null
@@ -38,6 +40,7 @@ export const useEditorStore = defineStore('editor', {
     saving: false,
     cursor: null,
     selBox: null,
+    selSource: null,
     _getSelection: null,
     _replaceRange: null,
     _insertAfter: null,
@@ -86,9 +89,14 @@ export const useEditorStore = defineStore('editor', {
     setMode(mode: EditorMode) {
       this.mode = mode
       this.selBox = null
+      this.selSource = null
     },
     setSelBox(box: { x: number; y: number; width: number; height: number } | null) {
       this.selBox = box
+      if (!box) this.selSource = null
+    },
+    setSelSource(source: 'editor' | 'viewer' | null) {
+      this.selSource = source
     },
     getSelection(): SelectionContext | null {
       return this._getSelection?.() ?? null

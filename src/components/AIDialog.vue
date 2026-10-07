@@ -12,7 +12,10 @@
 
       <div class="carry-note">
         <AppIcon name="layers" :size="13" />
-        <span>已自动携带：选中段落及其前后文（{{ selectedWords }} 字）</span>
+        <span>
+          已自动携带：选中段落及其前后文（{{ selectedWords }} 字）
+          <template v-if="readOnly"> · 来源：资料库（只读）</template>
+        </span>
       </div>
 
       <div class="chips">
@@ -82,8 +85,22 @@
         />
         <div class="foot-actions">
           <button class="btn" :disabled="!canApply" @click="copyOnly">仅复制</button>
-          <button class="btn" :disabled="!canApply" @click="insertAfterSel">插入其后</button>
-          <button class="btn purple" :disabled="!canApply" @click="replaceSel">替换原文</button>
+          <button
+            class="btn"
+            :disabled="readOnly || !canApply"
+            :title="readOnly ? '资料库内容只读，无法插入' : ''"
+            @click="insertAfterSel"
+          >
+            插入其后
+          </button>
+          <button
+            class="btn purple"
+            :disabled="readOnly || !canApply"
+            :title="readOnly ? '资料库内容只读，无法替换' : ''"
+            @click="replaceSel"
+          >
+            替换原文
+          </button>
         </div>
       </footer>
     </div>
@@ -100,7 +117,7 @@ import { streamChat, useAIStore } from '../stores/ai'
 import { useEditorStore } from '../stores/editor'
 import type { ChatMessage, SelectionContext } from '../types'
 
-const props = defineProps<{ actionId: string | null }>()
+const props = defineProps<{ actionId: string | null; readOnly?: boolean }>()
 const emit = defineEmits<{ close: [] }>()
 
 const ai = useAIStore()
@@ -124,10 +141,21 @@ let abortCtrl: AbortController | null = null
 const selectedWords = computed(() => (sel.value ? countWords(sel.value.text) : 0))
 const canApply = computed(() => !running.value && !!result.value.trim())
 
+/** 只读来源（资料库阅读窗格）：从 DOM 选区取词，全文取窗格文本 */
+function readViewerSelection(): SelectionContext | null {
+  const dom = window.getSelection()
+  const text = dom?.toString() ?? ''
+  if (!text.trim()) return null
+  const host = document.querySelector('[data-viewer-root]')
+  const fullText = (host?.textContent ?? '').replace(/\s+\n/g, '\n')
+  const start = Math.max(0, fullText.indexOf(text))
+  return { text, start, end: start + text.length, fullText }
+}
+
 onMounted(() => {
-  sel.value = editor.getSelection()
+  sel.value = props.readOnly ? readViewerSelection() : editor.getSelection()
   if (!sel.value) {
-    error.value = '未获取到选区，请先在编辑区选中文字'
+    error.value = props.readOnly ? '未获取到选区，请先在资料窗格中选中文字' : '未获取到选区，请先在编辑区选中文字'
     return
   }
   document.addEventListener('keydown', onKeydown)

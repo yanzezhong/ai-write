@@ -77,7 +77,7 @@
     <StatusBar />
 
     <SelectionToolbar @action="openAIDialog" />
-    <AIDialog v-if="aiDialog" :action-id="aiDialog.actionId" @close="aiDialog = null" />
+    <AIDialog v-if="aiDialog" :action-id="aiDialog.actionId" :read-only="aiDialog.readOnly" @close="aiDialog = null" />
     <FloatingChat v-if="layout.chatMode === 'float'" />
   </div>
 </template>
@@ -108,7 +108,7 @@ const project = useProjectStore()
 const viewer = useViewerStore()
 const library = useLibraryStore()
 
-const aiDialog = ref<{ actionId: string | null } | null>(null)
+const aiDialog = ref<{ actionId: string | null; readOnly: boolean } | null>(null)
 const archivingNote = ref(false)
 
 const crumbPath = computed(() => editor.doc?.path ?? '')
@@ -117,9 +117,13 @@ const isNoteOpen = computed(() => !!editor.doc?.path.startsWith('notes/'))
 /** 全书字数 = 文档列表字数之和（当前文档打开/保存时已同步进列表） */
 const totalWords = computed(() => project.docs.reduce((sum, d) => sum + d.wordCount, 0))
 
-function openAIDialog(actionId: string) {
-  if (!editor.getSelection()) return
-  aiDialog.value = { actionId }
+function openAIDialog(payload: { actionId: string; source: 'editor' | 'viewer' }) {
+  if (payload.source === 'editor') {
+    if (!editor.getSelection()) return
+  } else if (!window.getSelection()?.toString()) {
+    return
+  }
+  aiDialog.value = { actionId: payload.actionId, readOnly: payload.source === 'viewer' }
 }
 
 async function archiveCurrentNote() {
@@ -155,7 +159,7 @@ function onKeydown(e: KeyboardEvent) {
     editor.setMode(editor.mode === 'wysiwyg' ? 'source' : 'wysiwyg')
   } else if (key === 'j') {
     e.preventDefault()
-    if (editor.getSelection()) aiDialog.value = { actionId: null }
+    if (editor.getSelection()) aiDialog.value = { actionId: null, readOnly: false }
   }
 }
 
