@@ -1,0 +1,36 @@
+{
+  "name": "ai-writer",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@codemirror/commands": "^6.7.0",
+    "@codemirror/lang-markdown": "^6.3.1",
+    "@codemirror/language": "^6.10.3",
+    "@codemirror/state": "^6.4.1",
+    "@codemirror/view": "^6.28.0",
+    "@milkdown/core": "^7.5.0",
+    "@milkdown/ctx": "^7.5.0",
+    "@milkdown/plugin-listener": "^7.22.2",
+    "@milkdown/preset-commonmark": "^7.5.0",
+    "@milkdown/theme-nord": "^7.5.0",
+    "@milkdown/transformer": "^7.5.0",
+    "@milkdown/vue": "^7.5.0",
+    "markdown-it": "^14.1.0",
+    "pinia": "^2.2.4",
+    "vue": "^3.5.12",
+    "vue-router": "^4.4.5"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
+    "@vitejs/plugin-vue": "^5.1.4",
+    "typescript": "~5.6.2",
+    "vite": "^5.4.9",
+    "vue-tsc": "^2.1.6"
+  }
+}
