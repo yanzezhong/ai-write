@@ -4,32 +4,36 @@ import type { FileInfo } from '../types'
 /**
  * 内存文件系统：File System Access API 不可用时的兜底实现（演示模式）。
  * 接口与 WebFSAdapter 完全一致，业务层零改动；数据只存在于当前会话。
+ * 文本与二进制统一存一张表——否则 writeBinary 写入的文件在 listDir/exists/delete 里"消失"。
  */
+
+type MemEntry = { type: 'text'; text: string } | { type: 'bin'; data: Uint8Array }
+
 export class MemoryFSAdapter implements FSAdapter {
-  private files: Map<string, string>
-  private binFiles: Map<string, Uint8Array>
+  private entries: Map<string, MemEntry>
 
   constructor(seed?: Record<string, string>) {
-    this.files = new Map(Object.entries(seed ?? {}))
-    this.binFiles = new Map()
+    this.entries = new Map(
+      Object.entries(seed ?? {}).map(([k, v]) => [k, { type: 'text', text: v } as MemEntry]),
+    )
   }
 
   async readFile(path: string): Promise<string> {
-    const text = this.files.get(path)
-    if (text === undefined) throw new Error(`文件不存在：${path}`)
-    return text
+    const e = this.entries.get(path)
+    if (!e) throw new Error(`文件不存在：${path}`)
+    return e.type === 'text' ? e.text : new TextDecoder().decode(e.data)
   }
 
   async writeFile(path: string, content: string): Promise<void> {
     this.assertName(path)
-    this.files.set(path, content)
+    this.entries.set(path, { type: 'text', text: content })
   }
 
   async listDir(path: string): Promise<FileInfo[]> {
     const prefix = path ? `${path}/` : ''
     const seen = new Set<string>()
     const out: FileInfo[] = []
-    for (const key of this.files.keys()) {
+    for (const key of this.entries.keys()) {
       if (prefix && !key.startsWith(prefix)) continue
       const rest = key.slice(prefix.length)
       const seg = rest.split('/')[0]
@@ -46,9 +50,9 @@ export class MemoryFSAdapter implements FSAdapter {
   }
 
   async exists(path: string): Promise<boolean> {
-    if (this.files.has(path)) return true
+    if (this.entries.has(path)) return true
     const prefix = `${path}/`
-    for (const key of this.files.keys()) if (key.startsWith(prefix)) return true
+    for (const key of this.entries.keys()) if (key.startsWith(prefix)) return true
     return false
   }
 
@@ -61,17 +65,17 @@ export class MemoryFSAdapter implements FSAdapter {
   }
 
   async delete(path: string): Promise<void> {
-    this.files.delete(path)
+    this.entries.delete(path)
     const prefix = `${path}/`
-    for (const key of [...this.files.keys()]) if (key.startsWith(prefix)) this.files.delete(key)
+    for (const key of [...this.entries.keys()]) if (key.startsWith(prefix)) this.entries.delete(key)
   }
 
   async rename(path: string, newName: string): Promise<void> {
-    const content = this.files.get(path)
-    if (content === undefined) throw new Error(`文件不存在：${path}`)
+    const e = this.entries.get(path)
+    if (!e) throw new Error(`文件不存在：${path}`)
     const target = path.split('/').slice(0, -1).concat(newName).join('/')
-    this.files.delete(path)
-    this.files.set(target, content)
+    this.entries.delete(path)
+    this.entries.set(target, e)
   }
 
   /** 拦截非法文件名，提前给出可读错误 */
@@ -83,17 +87,14 @@ export class MemoryFSAdapter implements FSAdapter {
   }
 
   async readBinary(path: string): Promise<Uint8Array> {
-    const bin = this.binFiles.get(path)
-    if (bin) return bin
-    const text = this.files.get(path)
-    if (text === undefined) throw new Error(`文件不存在：${path}`)
-    return new TextEncoder().encode(text)
+    const e = this.entries.get(path)
+    if (!e) throw new Error(`文件不存在：${path}`)
+    return e.type === 'bin' ? e.data : new TextEncoder().encode(e.text)
   }
 
   async writeBinary(path: string, data: Uint8Array): Promise<void> {
     this.assertName(path)
-    this.binFiles.set(path, data)
-    this.files.delete(path)
+    this.entries.set(path, { type: 'bin', data })
   }
 }
 

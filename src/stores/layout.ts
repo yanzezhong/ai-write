@@ -73,6 +73,8 @@ export const useLayoutStore = defineStore('layout', {
       this.appSide[appId] = side
       this[side].activeAppId = appId
       this[side].open = true
+      // 从侧栏打开聊天 = 停靠意图：结束浮动状态，避免「停靠 + 浮动」双窗口
+      if (appId === 'chat' && this.chatMode === 'float') this.chatMode = 'docked'
       persist(this.$state)
     },
     closeApp(side: Side) {

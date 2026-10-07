@@ -28,6 +28,10 @@
             <AppIcon name="folder" :size="16" />
             打开本地项目
           </button>
+          <button class="btn" title="跨项目的素材与归档资料" @click="router.push({ name: 'library' })">
+            <AppIcon name="layers" :size="16" />
+            资料库
+          </button>
         </div>
         <p class="hint">
           <AppIcon name="lock" :size="13" />

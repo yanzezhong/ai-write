@@ -270,7 +270,13 @@ export async function gitCommitAll(message: string, author: { name: string; emai
 }
 
 export async function gitLog(depth = 30): Promise<GitCommitEntry[]> {
-  const commits = await git.log({ ...fsOpts(), depth, force: true })
+  const opts = fsOpts()
+  try {
+    await git.resolveRef({ ...opts, ref: 'HEAD' })
+  } catch {
+    return [] // 仓库已初始化但还没有任何提交（unborn branch），视为无历史
+  }
+  const commits = await git.log({ ...opts, depth, force: true })
   return commits.map((c) => ({
     oid: c.oid,
     message: c.commit.message.trim(),
