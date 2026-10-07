@@ -13,6 +13,9 @@ export interface FSAdapter {
   createDir(path: string): Promise<void>
   delete(path: string): Promise<void>
   rename(path: string, newName: string): Promise<void>
+  /** 二进制读写：资料库导入 PDF/图片等二进制文件时使用 */
+  readBinary(path: string): Promise<Uint8Array>
+  writeBinary(path: string, data: Uint8Array): Promise<void>
 }
 
 /** 基于 File System Access API 的实现（Chrome / Edge） */
@@ -111,6 +114,21 @@ export class WebFSAdapter implements FSAdapter {
     const target = path.split('/').slice(0, -1).concat(newName).join('/')
     await this.writeFile(target, content)
     await this.delete(path)
+  }
+
+  async readBinary(path: string): Promise<Uint8Array> {
+    const handle = await this.resolveFile(path)
+    const file = await handle.getFile()
+    return new Uint8Array(await file.arrayBuffer())
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    const parts = path.split('/').filter(Boolean)
+    const dir = await this.resolveDir(parts.slice(0, -1).join('/'))
+    const handle = await dir.getFileHandle(parts[parts.length - 1], { create: true })
+    const writable = await handle.createWritable()
+    await writable.write(new Blob([data as BlobPart]))
+    await writable.close()
   }
 }
 

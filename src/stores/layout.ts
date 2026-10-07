@@ -8,11 +8,15 @@ interface PanelState {
   activeAppId: string | null
 }
 
+/** AI 聊天形态：停靠侧边栏 / 浮动窗口 */
+export type ChatMode = 'docked' | 'float'
+
 interface LayoutState {
   left: PanelState
   right: PanelState
   /** 每种应用全局单例，记录它挂在哪一侧 */
   appSide: Record<string, Side>
+  chatMode: ChatMode
 }
 
 const DEFAULTS: LayoutState = {
@@ -24,10 +28,13 @@ const DEFAULTS: LayoutState = {
     docs: 'left',
     outline: 'left',
     git: 'left',
+    library: 'left',
+    notes: 'left',
     characters: 'right',
     chat: 'right',
     browser: 'right',
   },
+  chatMode: 'docked' as ChatMode,
 }
 
 function load(): LayoutState {
@@ -39,6 +46,7 @@ function persist(state: LayoutState) {
     left: state.left,
     right: state.right,
     appSide: state.appSide,
+    chatMode: state.chatMode,
   })
 }
 
@@ -77,6 +85,18 @@ export const useLayoutStore = defineStore('layout', {
       this.appSide[appId] = to
       this[to].activeAppId = appId
       this[to].open = true
+      persist(this.$state)
+    },
+    /** AI 聊天切到浮动窗口：不占侧边栏 */
+    floatChat() {
+      this.chatMode = 'float'
+      if (this.right.activeAppId === 'chat') this.right.activeAppId = null
+      persist(this.$state)
+    },
+    /** AI 聊天停靠回侧边栏 */
+    dockChat() {
+      this.chatMode = 'docked'
+      this.openApp('chat', 'right')
       persist(this.$state)
     },
   },

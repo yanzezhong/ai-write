@@ -111,6 +111,9 @@ export const useProjectStore = defineStore('project', {
       this.meta = { name: '星海纪元（演示）', createdAt: Date.now(), schema: PROJECT_SCHEMA }
       this.isDemo = true
       this.outlinePath = 'outline.md'
+      // 演示模式自带演示总资料库
+      const { setupDemoGlobalLibrary } = await import('../core/globalLibrary')
+      setupDemoGlobalLibrary()
       await this.refresh()
       const editor = useEditorStore()
       const first = this.docs.find((d) => d.path.startsWith('chapters/'))
@@ -138,7 +141,7 @@ export const useProjectStore = defineStore('project', {
           const text = await fs.readFile(f.path).catch(() => '')
           const wc = countWords(text)
           wordCount += wc
-          this.docs.push({ name: f.name, path: f.path, wordCount: wc })
+          this.docs.push({ name: f.name, path: f.path, wordCount: wc, modified: f.modified ?? Date.now() })
         }
       }
       this.docs.sort((a, b) => a.path.localeCompare(b.path, 'zh-CN'))

@@ -9,16 +9,29 @@
       />
       <span v-else class="title-placeholder">AI 聊天</span>
       <div class="head-actions">
+        <button class="icon-btn" title="多选对话，总结成 note" @click="selectMode = !selectMode; clearSel()">
+          <AppIcon name="layers" :size="16" />
+        </button>
         <button class="icon-btn" title="历史会话" @click="historyOpen = !historyOpen">
           <AppIcon name="history" :size="16" />
         </button>
         <button class="icon-btn" title="新建会话" @click="ai.newSession(); historyOpen = false">
           <AppIcon name="plus" :size="16" />
         </button>
-        <button class="icon-btn" title="更多">
-          <AppIcon name="more" :size="16" />
+        <button v-if="!embedded" class="icon-btn" title="切换为浮动窗口" @click="layout.floatChat()">
+          <AppIcon name="move" :size="16" />
         </button>
       </div>
+    </div>
+
+    <!-- 多选总结操作条 -->
+    <div v-if="selectMode" class="sel-bar">
+      <span>已选 {{ selected.size }} 条消息</span>
+      <span class="sel-actions">
+        <button class="btn ghost" @click="clearSel()">清空</button>
+        <button class="btn purple" :disabled="!selected.size" @click="openSummarize">总结成 note</button>
+        <button class="btn ghost" @click="selectMode = false; clearSel()">退出多选</button>
+      </span>
     </div>
 
     <div v-if="historyOpen" class="history-panel">
@@ -56,6 +69,10 @@
           <input type="checkbox" v-model="ai.ctx.characters" />
           <span>人物库</span>
         </label>
+        <label class="ctx-check">
+          <input type="checkbox" v-model="ai.ctx.libraryDocs" :disabled="!viewer.tabs.length" />
+          <span>当前打开的资料{{ viewer.tabs.length ? `（${viewer.tabs.length} 份）` : '' }}</span>
+        </label>
         <button class="ctx-more" @click="docsPanelOpen = !docsPanelOpen">
           其他指定文档…
           <AppIcon name="chevron-down" :size="12" />
@@ -83,8 +100,12 @@
         v-for="(msg, idx) in session?.messages ?? []"
         :key="idx"
         class="msg"
-        :class="msg.role"
+        :class="[msg.role, { selecting: selectMode }]"
+        @click="selectMode && toggleSelect(idx)"
       >
+        <label v-if="selectMode" class="sel-check" @click.stop>
+          <input type="checkbox" :checked="selected.has(idx)" @change="toggleSelect(idx)" />
+        </label>
         <div v-if="msg.role === 'assistant'" class="bot-avatar">
           <AppIcon name="sparkles" :size="14" />
         </div>
@@ -122,6 +143,7 @@
         class="chat-input"
         rows="1"
         placeholder="继续追问，或描述你要的改动…（支持 Markdown）"
+        :disabled="selectMode"
         @input="autogrow"
         @keydown.enter.exact.prevent="send"
       ></textarea>
@@ -133,10 +155,12 @@
       >
         <AppIcon name="stop" :size="16" />
       </button>
-      <button v-else class="send-btn" title="发送" :disabled="!input.trim()" @click="send">
+      <button v-else class="send-btn" title="发送" :disabled="!input.trim() || selectMode" @click="send">
         <AppIcon name="send" :size="16" />
       </button>
     </div>
+
+    <SummarizeDialog v-if="summarizeOpen" :messages="summarizeMessages" @close="summarizeOpen = false" />
   </div>
 </template>
 
@@ -144,12 +168,17 @@
 import MarkdownIt from 'markdown-it'
 import { computed, nextTick, onMounted, ref } from 'vue'
 import AppIcon from '../components/AppIcon.vue'
+import SummarizeDialog from '../components/SummarizeDialog.vue'
 import { buildUserMessage } from '../ai/context'
 import { registry } from '../core/pluginRegistry'
 import { streamChat, useAIStore } from '../stores/ai'
 import { useEditorStore } from '../stores/editor'
+import { useLayoutStore } from '../stores/layout'
 import { useProjectStore } from '../stores/project'
-import type { SelectionContext } from '../types'
+import { useViewerStore } from '../stores/viewer'
+import type { ChatMessage, SelectionContext } from '../types'
+
+withDefaults(defineProps<{ embedded?: boolean }>(), { embedded: false })
 
 interface EditorService {
   getSelection(): SelectionContext | null
@@ -161,6 +190,8 @@ interface EditorService {
 const ai = useAIStore()
 const editor = useEditorStore()
 const project = useProjectStore()
+const layout = useLayoutStore()
+const viewer = useViewerStore()
 
 const input = ref('')
 const textarea = ref<HTMLTextAreaElement | null>(null)
@@ -168,6 +199,31 @@ const msgList = ref<HTMLDivElement | null>(null)
 const historyOpen = ref(false)
 const docsPanelOpen = ref(false)
 const abortCtrl = ref<AbortController | null>(null)
+/** 多选总结 */
+const selectMode = ref(false)
+const selected = ref<Set<number>>(new Set())
+const summarizeOpen = ref(false)
+const summarizeMessages = ref<ChatMessage[]>([])
+
+function toggleSelect(idx: number) {
+  const s = new Set(selected.value)
+  if (s.has(idx)) s.delete(idx)
+  else s.add(idx)
+  selected.value = s
+}
+
+function clearSel() {
+  selected.value = new Set()
+}
+
+function openSummarize() {
+  const msgs = session.value?.messages ?? []
+  summarizeMessages.value = [...selected.value].sort((a, b) => a - b).map((i) => msgs[i]).filter(Boolean)
+  if (!summarizeMessages.value.length) return
+  summarizeOpen.value = true
+  selectMode.value = false
+  clearSel()
+}
 
 const session = computed(() => ai.currentSession)
 const provider = computed(() => ai.activeProvider)
@@ -662,5 +718,44 @@ onMounted(() => {
 .md :deep(h4) {
   font-size: 14px;
   margin: 8px 0 4px;
+}
+
+/* ---------- 多选总结 ---------- */
+
+.sel-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  background: var(--purple-soft);
+  color: var(--purple);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+.sel-actions {
+  display: inline-flex;
+  gap: 6px;
+}
+.sel-actions .btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+.msg.selecting {
+  cursor: pointer;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+.msg.selecting:hover {
+  background: var(--purple-soft);
+}
+.sel-check {
+  flex: none;
+  display: inline-flex;
+  align-items: flex-start;
+  padding-top: 6px;
+}
+.sel-check input {
+  accent-color: var(--purple);
 }
 </style>

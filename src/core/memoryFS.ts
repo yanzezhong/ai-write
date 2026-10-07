@@ -7,9 +7,11 @@ import type { FileInfo } from '../types'
  */
 export class MemoryFSAdapter implements FSAdapter {
   private files: Map<string, string>
+  private binFiles: Map<string, Uint8Array>
 
   constructor(seed?: Record<string, string>) {
     this.files = new Map(Object.entries(seed ?? {}))
+    this.binFiles = new Map()
   }
 
   async readFile(path: string): Promise<string> {
@@ -79,6 +81,20 @@ export class MemoryFSAdapter implements FSAdapter {
       throw new Error(`名称包含非法字符：${seg}`)
     }
   }
+
+  async readBinary(path: string): Promise<Uint8Array> {
+    const bin = this.binFiles.get(path)
+    if (bin) return bin
+    const text = this.files.get(path)
+    if (text === undefined) throw new Error(`文件不存在：${path}`)
+    return new TextEncoder().encode(text)
+  }
+
+  async writeBinary(path: string, data: Uint8Array): Promise<void> {
+    this.assertName(path)
+    this.binFiles.set(path, data)
+    this.files.delete(path)
+  }
 }
 
 /** 演示项目种子（「星海纪元」示例，含大纲 / 章节 / 人物 / 随笔） */
@@ -136,6 +152,20 @@ export function demoProjectFiles(projectName = '星海纪元'): Record<string, s
       '',
     ].join('\n'),
     'notes/灵感碎片.md': '# 灵感碎片\n\n- 铜币：旧时代的钥匙，信标的另一半\n- 雨夜 = 追踪的天然幕布\n- 「鲸落」星舰：卷二的主要舞台\n',
+    'notes/追逐戏写法笔记.md': [
+      '# 追逐戏的三层紧张感',
+      '',
+      '① 听觉遮蔽——让环境音盖过脚步，制造感知盲区。雨夜、集市、机房都适用。',
+      '',
+      '② 感官碎片——每 3-4 句插入一次嗅觉/触觉：铁锈味、后颈的冷、掌心的汗。',
+      '',
+      '③ 句式切割——长句全部切成 10 字以内短句；段落结尾用单句独立成段收束。',
+      '',
+      '—— 由 2 段 AI 会话总结生成（2026-10-07），可继续编辑；归档后转为只读资料。',
+      '',
+    ].join('\n'),
+    'notes/卷二伏笔清单.md': '# 卷二伏笔清单\n\n- 铜币与信标的对应关系要在卷二前三分之一揭示\n- 沈聿"认识失忆前的林霁"：先给闪回，不给答案\n- 鲸落号的唤醒条件：铜币 + 旧时代船坞权限\n',
+    'notes/林霁语气样本.md': '# 林霁语气样本\n\n- 短句，冷幽默，自我保护式的轻描淡写\n- 对"从前"的话题一律用物件转移（铜币、义肢）\n',
     'characters/林霁.md': [
       '# 林霁',
       '',

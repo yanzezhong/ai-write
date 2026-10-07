@@ -25,6 +25,7 @@ export interface DocEntry {
   name: string
   path: string
   wordCount: number
+  modified?: number
 }
 
 export interface AIProviderConfig {
@@ -49,6 +50,8 @@ export interface ChatSession {
   title: string
   providerId: string
   model: string
+  /** 发起会话时所在项目（AI 历史按项目过滤用） */
+  projectName?: string
   messages: ChatMessage[]
   createdAt: number
   updatedAt: number

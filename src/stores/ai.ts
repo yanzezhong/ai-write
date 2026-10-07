@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import type { AIProviderConfig, ChatMessage, ChatSession } from '../types'
 import { idbDelete, idbGetAll, idbSet, lsGet, lsSet } from '../core/storage'
+import { useProjectStore } from './project'
 
 export const BUILTIN_PROVIDERS: AIProviderConfig[] = [
   {
@@ -40,7 +41,14 @@ interface AIState {
   currentSessionId: string | null
   generating: boolean
   /** 聊天时手动勾选的上下文 */
-  ctx: { currentDoc: boolean; outline: boolean; characters: boolean; extraDocs: string[] }
+  ctx: {
+    currentDoc: boolean
+    outline: boolean
+    characters: boolean
+    extraDocs: string[]
+    /** 当前打开的资料（资料展示窗格） */
+    libraryDocs: boolean
+  }
 }
 
 export const useAIStore = defineStore('ai', {
@@ -50,7 +58,7 @@ export const useAIStore = defineStore('ai', {
     sessions: [],
     currentSessionId: null,
     generating: false,
-    ctx: { currentDoc: true, outline: false, characters: false, extraDocs: [] },
+    ctx: { currentDoc: true, outline: false, characters: false, extraDocs: [] as string[], libraryDocs: false },
   }),
   getters: {
     activeProvider: (s): AIProviderConfig | null =>
@@ -85,11 +93,13 @@ export const useAIStore = defineStore('ai', {
     },
     newSession(): ChatSession {
       const provider = this.activeProvider
+      const projectName = useProjectStore().isOpen ? useProjectStore().projectName : ''
       const s: ChatSession = {
         id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
         title: '新会话',
         providerId: provider?.id ?? '',
         model: provider?.model ?? '',
+        projectName,
         messages: [],
         createdAt: Date.now(),
         updatedAt: Date.now(),

@@ -2,7 +2,9 @@ import type { ChatMessage } from '../types'
 import { getFS } from '../core/fs'
 import { useAIStore } from '../stores/ai'
 import { useEditorStore } from '../stores/editor'
+import { useLibraryStore } from '../stores/library'
 import { useProjectStore } from '../stores/project'
+import { useViewerStore } from '../stores/viewer'
 
 /**
  * 按聊天面板中的手动勾选，组装喂给 AI 的项目上下文。
@@ -35,6 +37,20 @@ export async function buildContextBlock(): Promise<string | null> {
       if (content.trim()) parts.push(`【文档：${path}】\n${content}`)
     }
     if (parts.length) sections.push(parts.join('\n\n'))
+  }
+  if (ai.ctx.libraryDocs) {
+    // 当前打开的资料（资料展示窗格中的文件）
+    const viewer = useViewerStore()
+    const library = useLibraryStore()
+    if (viewer.tabs.length && library.ready) {
+      const parts: string[] = []
+      for (const tab of viewer.tabs) {
+        if (tab.source !== 'library') continue
+        const content = await library.readFileText(tab.path).catch(() => '')
+        if (content.trim()) parts.push(`【资料：${tab.name}】\n${content}`)
+      }
+      if (parts.length) sections.push(`【当前打开的资料】\n${parts.join('\n\n')}`)
+    }
   }
 
   if (!sections.length) return null

@@ -7,6 +7,10 @@
       <span v-else-if="project.isOpen" class="dim">· 已授权本地文件夹</span>
     </div>
     <div class="right">
+      <span v-if="viewer.open && viewer.tabs.length" class="viewer-stat">
+        资料 ×{{ viewer.tabs.length }} 打开中
+      </span>
+      <span v-if="layout.chatMode === 'float'" class="viewer-stat">AI：浮动</span>
       <template v-if="selCtx">
         <span>已选中 {{ formatWords(countWords(selCtx.text)) }}</span>
         <span v-if="provider" class="dim">· {{ provider.name }} · {{ provider.model }}</span>
@@ -26,11 +30,15 @@ import AppIcon from './AppIcon.vue'
 import { countWords, formatWords } from '../core/storage'
 import { useAIStore } from '../stores/ai'
 import { useEditorStore } from '../stores/editor'
+import { useLayoutStore } from '../stores/layout'
 import { useProjectStore } from '../stores/project'
+import { useViewerStore } from '../stores/viewer'
 
 const editor = useEditorStore()
 const project = useProjectStore()
 const ai = useAIStore()
+const viewer = useViewerStore()
+const layout = useLayoutStore()
 
 const provider = computed(() => ai.activeProvider)
 const modeLabel = computed(() => (editor.mode === 'wysiwyg' ? '所见即所得' : '源码模式'))
@@ -67,5 +75,8 @@ const selCtx = computed(() => (editor.selBox ? editor.getSelection() : null))
 
 .dim {
   color: var(--text-3);
+}
+.viewer-stat {
+  color: var(--accent);
 }
 </style>

@@ -25,6 +25,18 @@ export const APP_PLUGINS: AppPlugin[] = [
     component: () => import('../apps/GitApp.vue'),
   },
   {
+    id: 'library',
+    name: '资料库',
+    icon: 'layers',
+    component: () => import('../apps/LibraryApp.vue'),
+  },
+  {
+    id: 'notes',
+    name: '笔记',
+    icon: 'edit',
+    component: () => import('../apps/NotesApp.vue'),
+  },
+  {
     id: 'outline',
     name: '剧情大纲',
     icon: 'outline',

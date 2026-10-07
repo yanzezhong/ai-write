@@ -47,6 +47,18 @@
             </template>
           </span>
         </template>
+        <button
+          v-if="isNoteOpen"
+          class="btn archive-note"
+          title="归档到总资料库（原 note 消失，变为只读资料）"
+          :disabled="archivingNote"
+          @click="archiveCurrentNote"
+        >
+          {{ archivingNote ? '归档中…' : '归档→总资料库' }}
+        </button>
+        <button class="icon-btn" title="资料库" @click="router.push({ name: 'library' })">
+          <AppIcon name="layers" :size="17" />
+        </button>
         <button class="icon-btn" title="设置" @click="router.push({ name: 'settings' })">
           <AppIcon name="settings" :size="17" />
         </button>
@@ -56,6 +68,7 @@
     <div class="main">
       <ActivityBar side="left" />
       <SidePanel v-if="layout.left.open && layout.left.activeAppId" side="left" />
+      <ViewerPane v-if="viewer.open && viewer.tabs.length" />
       <EditorPane />
       <SidePanel v-if="layout.right.open && layout.right.activeAppId" side="right" />
       <ActivityBar side="right" />
@@ -65,6 +78,7 @@
 
     <SelectionToolbar @action="openAIDialog" />
     <AIDialog v-if="aiDialog" :action-id="aiDialog.actionId" @close="aiDialog = null" />
+    <FloatingChat v-if="layout.chatMode === 'float'" />
   </div>
 </template>
 
@@ -77,20 +91,28 @@ import EditorPane from '../components/EditorPane.vue'
 import StatusBar from '../components/StatusBar.vue'
 import SelectionToolbar from '../components/SelectionToolbar.vue'
 import AIDialog from '../components/AIDialog.vue'
+import FloatingChat from '../components/FloatingChat.vue'
+import ViewerPane from '../components/ViewerPane.vue'
 import AppIcon from '../components/AppIcon.vue'
 import { formatClock, formatWords } from '../core/storage'
 import { useEditorStore } from '../stores/editor'
 import { useLayoutStore } from '../stores/layout'
+import { useLibraryStore } from '../stores/library'
 import { useProjectStore } from '../stores/project'
+import { useViewerStore } from '../stores/viewer'
 
 const router = useRouter()
 const editor = useEditorStore()
 const layout = useLayoutStore()
 const project = useProjectStore()
+const viewer = useViewerStore()
+const library = useLibraryStore()
 
 const aiDialog = ref<{ actionId: string | null } | null>(null)
+const archivingNote = ref(false)
 
 const crumbPath = computed(() => editor.doc?.path ?? '')
+const isNoteOpen = computed(() => !!editor.doc?.path.startsWith('notes/'))
 
 /** 全书字数 = 文档列表字数之和（当前文档打开/保存时已同步进列表） */
 const totalWords = computed(() => project.docs.reduce((sum, d) => sum + d.wordCount, 0))
@@ -98,6 +120,27 @@ const totalWords = computed(() => project.docs.reduce((sum, d) => sum + d.wordCo
 function openAIDialog(actionId: string) {
   if (!editor.getSelection()) return
   aiDialog.value = { actionId }
+}
+
+async function archiveCurrentNote() {
+  if (!editor.doc) return
+  if (!window.confirm(`把笔记「${editor.doc.name}」归档到总资料库？\n归档后 note 将从项目中消失，变为只读资料。`)) return
+  archivingNote.value = true
+  try {
+    if (!library.ready) {
+      const ok = await library.init()
+      if (!ok) {
+        window.alert('总资料库尚未设置，请先在「资料库」页选择文件夹。')
+        return
+      }
+    }
+    await library.archiveNoteFromProject(editor.doc.path)
+    editor.doc = null
+  } catch (err) {
+    window.alert(err instanceof Error ? err.message : String(err))
+  } finally {
+    archivingNote.value = false
+  }
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -238,6 +281,10 @@ onBeforeUnmount(() => {
 }
 .save-check {
   color: var(--green);
+}
+.archive-note {
+  padding: 5px 12px;
+  font-size: 12.5px;
 }
 
 /* ---------- 三栏主体 ---------- */
