@@ -84,7 +84,7 @@ function toggle(appId: string) {
 }
 .rail-btn:hover {
   color: var(--text);
-  background: rgba(255, 255, 255, 0.45);
+  background: var(--rail-hover);
 }
 .rail-btn.active {
   color: var(--accent);

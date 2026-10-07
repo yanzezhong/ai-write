@@ -20,6 +20,9 @@
           <button class="icon-btn edit-btn" title="编辑" @click="editCard(card)">
             <AppIcon name="edit" :size="14" />
           </button>
+          <button class="icon-btn edit-btn del-btn" title="删除" @click="deleteCard(card)">
+            <AppIcon name="trash" :size="14" />
+          </button>
         </div>
         <div v-if="card.tags.length" class="tags">
           <span v-for="tag in card.tags" :key="tag" class="tag">{{ tag }}</span>
@@ -141,6 +144,12 @@ async function submitForm() {
     await fs.writeFile(path, content)
   }
   formOpen.value = false
+  await project.loadCharacters()
+}
+
+async function deleteCard(card: CharacterCard) {
+  if (!window.confirm(`删除人物「${card.name}」？\n将删除文件 ${card.filePath}，不可恢复。`)) return
+  await getFS().delete(card.filePath)
   await project.loadCharacters()
 }
 </script>
@@ -278,6 +287,9 @@ async function submitForm() {
 }
 .card:hover .edit-btn {
   opacity: 1;
+}
+.del-btn:hover {
+  color: var(--accent);
 }
 
 .tags {

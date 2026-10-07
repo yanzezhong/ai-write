@@ -6,7 +6,7 @@
       <div class="row">
         <div>
           <div class="row-title">主题色</div>
-          <div class="row-desc">当前为暖米白 + 朱红主色。</div>
+          <div class="row-desc">当前为{{ theme }}主题 · 主色朱红（三套主题共用，保证可读性）。</div>
         </div>
         <div class="swatches">
           <button
@@ -45,20 +45,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import AppIcon from '../../components/AppIcon.vue'
-import { usePrefsStore } from '../../stores/prefs'
+import { usePrefsStore, type ThemeName } from '../../stores/prefs'
 
-const themes = [
+const themes: Array<{ label: ThemeName; bg: string; accent: string }> = [
   { label: '暖米白', bg: '#f5f2ea', accent: '#bc3f2b' },
-  { label: '石墨灰', bg: '#2b2b30', accent: '#d0d0d6' },
-  { label: '雾蓝', bg: '#eef2f6', accent: '#3d6ea5' },
+  { label: '石墨灰', bg: '#2b2a30', accent: '#bc3f2b' },
+  { label: '雾蓝', bg: '#eef2f6', accent: '#bc3f2b' },
 ]
 
 const headingFontOptions = ['衬线标题', '无衬线标题'] as const
 
-const theme = ref('暖米白')
 const prefs = usePrefsStore()
+
+const theme = computed({
+  get: () => prefs.theme,
+  set: (v: ThemeName) => prefs.update({ theme: v }),
+})
 const headingFont = computed({
   get: () => prefs.headingFont,
   set: (v) => prefs.update({ headingFont: v }),

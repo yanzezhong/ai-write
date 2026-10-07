@@ -181,3 +181,41 @@ a {
 .fade-leave-to {
   opacity: 0;
 }
+
+/* ---------- 主题（设置 → 外观）：只覆盖中性色，主 accent 保留朱红，保证既有对比度逻辑不变 ---------- */
+
+:root {
+  --rail-hover: rgba(255, 255, 255, 0.45);
+}
+
+/* 雾蓝 */
+[data-theme='mist'] {
+  --bg: #eef2f6;
+  --bg-deep: #e2e9f1;
+  --panel: #fbfcfe;
+  --panel-2: #f2f6fa;
+  --border: #dce4ee;
+  --border-strong: #c9d5e2;
+  --shadow: 0 4px 24px rgba(40, 60, 90, 0.1);
+  --shadow-lg: 0 12px 48px rgba(40, 60, 90, 0.16);
+}
+
+/* 石墨灰（暗色） */
+[data-theme='graphite'] {
+  --bg: #232227;
+  --bg-deep: #1d1c21;
+  --panel: #2b2a30;
+  --panel-2: #333238;
+  --border: #3c3b42;
+  --border-strong: #4a4952;
+  --text: #e9e7e2;
+  --text-2: #b3afa7;
+  --text-3: #7d7970;
+  --accent-soft: rgba(188, 63, 43, 0.2);
+  --accent-soft-2: rgba(188, 63, 43, 0.3);
+  --purple-soft: rgba(111, 91, 216, 0.22);
+  --shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 12px 48px rgba(0, 0, 0, 0.5);
+  --rail-hover: rgba(255, 255, 255, 0.07);
+  color-scheme: dark;
+}
