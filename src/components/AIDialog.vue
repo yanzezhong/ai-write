@@ -22,7 +22,7 @@
           class="chip"
           :class="{ active: activeAction === a.id }"
           :disabled="running"
-          @click="run(a.id)"
+          @click="onChipClick(a.id)"
         >
           {{ a.label }}
         </button>
@@ -36,6 +36,14 @@
         placeholder="粘贴要模仿的参考段落（比如另一篇文章的段落）。将模仿它的文风，结合选中段的情节另写一段；留空则以选中段本身为仿写对象"
         :disabled="running"
       ></textarea>
+      <button
+        v-if="activeAction === 'imitate'"
+        class="btn purple gen-btn"
+        :disabled="running"
+        @click="run('imitate')"
+      >
+        生成
+      </button>
 
       <input
         v-model="instruction"
@@ -123,8 +131,12 @@ onMounted(() => {
     return
   }
   document.addEventListener('keydown', onKeydown)
-  // 仿写需要用户先粘贴参考段落，打开时不自动执行
-  if (props.actionId && props.actionId !== 'imitate') run(props.actionId)
+  // 仿写需要用户先粘贴参考段落，打开时只选中动作、不自动执行
+  if (props.actionId === 'imitate') {
+    activeAction.value = 'imitate'
+  } else if (props.actionId) {
+    run(props.actionId)
+  }
 })
 
 onBeforeUnmount(() => {
@@ -194,6 +206,18 @@ async function run(actionId: string, extra?: string) {
     running.value = false
     abortCtrl = null
   }
+}
+
+/** chips 点击：仿写只选中动作（等用户粘贴素材后点「生成」），其余直接执行 */
+function onChipClick(id: string) {
+  if (id === 'imitate') {
+    if (!running.value) {
+      activeAction.value = 'imitate'
+      error.value = ''
+    }
+    return
+  }
+  run(id)
 }
 
 /** 按 chips 上的补充要求重跑当前动作 */
@@ -352,6 +376,12 @@ function copyOnly() {
   min-height: 64px;
   font-size: 13px;
   line-height: 1.7;
+}
+.gen-btn {
+  flex: none;
+  align-self: flex-end;
+  padding: 6px 22px;
+  font-size: 13px;
 }
 
 .result {
