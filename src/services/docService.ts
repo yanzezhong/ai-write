@@ -14,6 +14,9 @@ export async function openDocInEditor(path: string): Promise<void> {
   const project = useProjectStore()
   const entry = project.docs.find((d) => d.path === path)
   if (entry) entry.wordCount = countWords(content)
+  // 记住当前文档，刷新页面后可恢复到同一篇
+  const { recordSession } = await import('./session')
+  recordSession(path)
 }
 
 /** 新建文档并打开。folder 如 'chapters' */

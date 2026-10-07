@@ -116,10 +116,15 @@ function onKeydown(e: KeyboardEvent) {
   }
 }
 
-onMounted(() => {
+onMounted(async () => {
   if (!project.isOpen) {
-    void router.replace({ name: 'home' })
-    return
+    // 刷新页面后尝试恢复上次会话（演示模式直接重开；真实项目依赖持久授权）
+    const { restoreSession } = await import('../services/session')
+    const restored = await restoreSession()
+    if (!restored) {
+      void router.replace({ name: 'home' })
+      return
+    }
   }
   window.addEventListener('keydown', onKeydown)
 })

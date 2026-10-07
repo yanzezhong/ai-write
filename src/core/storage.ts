@@ -23,14 +23,15 @@ export function lsRemove(key: string): void {
 
 let dbPromise: Promise<IDBDatabase> | null = null
 
-function db(): Promise<IDBDatabase> {
+export function idbDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open('ai-writer', 1)
+      const req = indexedDB.open('ai-writer', 2)
       req.onupgradeneeded = () => {
         const d = req.result
         if (!d.objectStoreNames.contains('handles')) d.createObjectStore('handles')
         if (!d.objectStoreNames.contains('chat')) d.createObjectStore('chat', { keyPath: 'id' })
+        if (!d.objectStoreNames.contains('gitfs')) d.createObjectStore('gitfs')
       }
       req.onsuccess = () => resolve(req.result)
       req.onerror = () => reject(req.error)
@@ -40,7 +41,7 @@ function db(): Promise<IDBDatabase> {
 }
 
 export async function idbSet(store: string, key: IDBValidKey, value: unknown): Promise<void> {
-  const d = await db()
+  const d = await idbDb()
   return new Promise((resolve, reject) => {
     const tx = d.transaction(store, 'readwrite')
     tx.objectStore(store).put(value, key)
@@ -50,7 +51,7 @@ export async function idbSet(store: string, key: IDBValidKey, value: unknown): P
 }
 
 export async function idbGet<T>(store: string, key: IDBValidKey): Promise<T | undefined> {
-  const d = await db()
+  const d = await idbDb()
   return new Promise((resolve, reject) => {
     const tx = d.transaction(store, 'readonly')
     const req = tx.objectStore(store).get(key)
@@ -60,7 +61,7 @@ export async function idbGet<T>(store: string, key: IDBValidKey): Promise<T | un
 }
 
 export async function idbDelete(store: string, key: IDBValidKey): Promise<void> {
-  const d = await db()
+  const d = await idbDb()
   return new Promise((resolve, reject) => {
     const tx = d.transaction(store, 'readwrite')
     tx.objectStore(store).delete(key)
@@ -70,7 +71,7 @@ export async function idbDelete(store: string, key: IDBValidKey): Promise<void> 
 }
 
 export async function idbGetAll<T>(store: string): Promise<T[]> {
-  const d = await db()
+  const d = await idbDb()
   return new Promise((resolve, reject) => {
     const tx = d.transaction(store, 'readonly')
     const req = tx.objectStore(store).getAll()

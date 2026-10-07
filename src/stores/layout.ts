@@ -19,7 +19,15 @@ const DEFAULTS: LayoutState = {
   left: { open: true, activeAppId: 'docs' },
   right: { open: false, activeAppId: null },
   // 应用默认分布：写作导航放左栏，AI / 资料放右栏
-  appSide: { files: 'left', docs: 'left', outline: 'left', characters: 'right', chat: 'right', browser: 'right' },
+  appSide: {
+    files: 'left',
+    docs: 'left',
+    outline: 'left',
+    git: 'left',
+    characters: 'right',
+    chat: 'right',
+    browser: 'right',
+  },
 }
 
 function load(): LayoutState {

@@ -67,6 +67,8 @@ export const useProjectStore = defineStore('project', {
       lsSet('recentProjects', [entry, ...rest].slice(0, 20))
       // 句柄存 IndexedDB，便于下次会话重新授权（queryPermission）
       await idbSet('handles', handle.name, handle).catch(() => {})
+      const { recordSession } = await import('../services/session')
+      recordSession()
     },
 
     async openExisting(handle: FileSystemDirectoryHandle) {
@@ -116,6 +118,8 @@ export const useProjectStore = defineStore('project', {
         const content = await fs.readFile(first.path).catch(() => '')
         editor.openDoc(first.path, first.name, content)
       }
+      const { recordSession } = await import('../services/session')
+      recordSession()
     },
 
     async refresh() {
@@ -182,6 +186,7 @@ export const useProjectStore = defineStore('project', {
       this.isDemo = false
       this.docs = []
       this.characters = []
+      void import('../services/session').then((m) => m.clearSession())
     },
   },
 })

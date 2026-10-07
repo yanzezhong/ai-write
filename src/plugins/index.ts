@@ -18,6 +18,13 @@ export const APP_PLUGINS: AppPlugin[] = [
     component: () => import('../apps/DocsApp.vue'),
   },
   {
+    id: 'git',
+    name: '版本管理',
+    icon: 'history',
+    provides: ['git'],
+    component: () => import('../apps/GitApp.vue'),
+  },
+  {
     id: 'outline',
     name: '剧情大纲',
     icon: 'outline',
