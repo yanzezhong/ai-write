@@ -637,7 +637,7 @@ export const useImitateStore = defineStore('imitate', {
       }
     },
 
-    /** 逐段：保存当前章并推进；返回是否已完成全部 */
+    /** 逐段：保存当前章并推进；末章返回 true（不改 phase，由 UI 弹完成窗决定去向） */
     async segmentNext(): Promise<boolean> {
       const c = this.currentChapter()
       const fs = getFS()
@@ -645,7 +645,6 @@ export const useImitateStore = defineStore('imitate', {
         await fs.writeFile(`chapters/${c.chapter}.md`, this.chapterTexts[c.id] + '\n').catch(() => {})
       }
       if (this.segmentIdx >= this.outline.length - 1) {
-        this.phase = 'done'
         await this.writeDerived()
         await this.save()
         return true
