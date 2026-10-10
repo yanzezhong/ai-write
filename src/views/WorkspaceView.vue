@@ -56,6 +56,14 @@
         >
           {{ archivingNote ? '归档中…' : '归档→总资料库' }}
         </button>
+        <button
+          v-if="canResumeImitate"
+          class="btn resume-imitate"
+          title="上次的一键仿写还没完成"
+          @click="resumeImitate"
+        >
+          ✨ 继续仿写
+        </button>
         <button class="icon-btn" title="资料库" @click="router.push({ name: 'library' })">
           <AppIcon name="layers" :size="17" />
         </button>
@@ -95,7 +103,9 @@ import FloatingChat from '../components/FloatingChat.vue'
 import ViewerPane from '../components/ViewerPane.vue'
 import AppIcon from '../components/AppIcon.vue'
 import { formatClock, formatWords } from '../core/storage'
+import { getFS } from '../core/fs'
 import { useEditorStore } from '../stores/editor'
+import { useImitateStore } from '../stores/imitate'
 import { useLayoutStore } from '../stores/layout'
 import { useLibraryStore } from '../stores/library'
 import { useProjectStore } from '../stores/project'
@@ -110,6 +120,7 @@ const library = useLibraryStore()
 
 const aiDialog = ref<{ actionId: string | null; readOnly: boolean } | null>(null)
 const archivingNote = ref(false)
+const canResumeImitate = ref(false)
 
 const crumbPath = computed(() => editor.doc?.path ?? '')
 const isNoteOpen = computed(() => !!editor.doc?.path.startsWith('notes/'))
@@ -173,8 +184,24 @@ onMounted(async () => {
       return
     }
   }
+  // 项目里有未完成的仿写进度 → 顶栏显示「继续仿写」
+  try {
+    const fs = getFS()
+    if (await fs.exists('worldbuilding/imitate.json')) {
+      const imitate = useImitateStore()
+      if (imitate.phase !== 'done') canResumeImitate.value = true
+    }
+  } catch {
+    /* 无仿写进度 */
+  }
   window.addEventListener('keydown', onKeydown)
 })
+
+async function resumeImitate() {
+  const imitate = useImitateStore()
+  const ok = imitate.active || (await imitate.loadFromProject())
+  if (ok) await router.push({ name: 'imitate' })
+}
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
@@ -256,6 +283,17 @@ onBeforeUnmount(() => {
 }
 .mode-btn:disabled {
   cursor: not-allowed;
+}
+
+.resume-imitate {
+  padding: 5px 12px;
+  font-size: 12.5px;
+  background: var(--purple-soft);
+  border-color: var(--purple);
+  color: var(--purple);
+}
+.resume-imitate:hover {
+  filter: brightness(1.05);
 }
 
 .tb-right {

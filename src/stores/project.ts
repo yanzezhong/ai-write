@@ -107,6 +107,22 @@ export const useProjectStore = defineStore('project', {
       await this.openWithHandle(dir)
     },
 
+    /** 演示模式（通用）：以自定义名称与文件种子打开内存项目（一键仿写用） */
+    async openDemoProject(name: string, files: Record<string, string>) {
+      const { MemoryFSAdapter } = await import('../core/memoryFS')
+      const fs = new MemoryFSAdapter(files)
+      setFS(fs)
+      this.rootHandle = { name } as FileSystemDirectoryHandle
+      this.meta = { name, createdAt: Date.now(), schema: PROJECT_SCHEMA }
+      this.isDemo = true
+      this.outlinePath = 'outline.md'
+      const { setupDemoGlobalLibrary } = await import('../core/globalLibrary')
+      setupDemoGlobalLibrary()
+      await this.refresh()
+      const { recordSession } = await import('../services/session')
+      recordSession()
+    },
+
     /** 演示模式：内存文件系统，不依赖系统选择器、不写入磁盘（刷新即清空） */
     async openDemo() {
       const { MemoryFSAdapter, demoProjectFiles } = await import('../core/memoryFS')

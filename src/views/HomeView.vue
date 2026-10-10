@@ -20,6 +20,10 @@
         <h1 class="title">落笔之前，<br />万事俱备。</h1>
         <p class="subtitle">以项目为单位的个人 AI 写作器。项目即本地文件夹，打开即授权，数据不出你的电脑。</p>
         <div class="actions">
+          <button class="btn imitate-btn" @click="showPick = true">
+            <AppIcon name="sparkles" :size="16" />
+            ✨ 一键仿写
+          </button>
           <button class="btn primary" @click="showDialog = true">
             <AppIcon name="plus" :size="16" />
             新建项目
@@ -33,6 +37,7 @@
             资料库
           </button>
         </div>
+        <p class="imitate-hint">粘贴一篇喜欢的文章，AI 四步拆解世界观 / 人物 / 文风 / 大纲，再一键生成你的仿写文。</p>
         <p class="hint">
           <AppIcon name="lock" :size="13" />
           仅支持 Chrome / Edge · 通过 File System Access API 授权本地文件夹
@@ -63,6 +68,7 @@
     </main>
 
     <NewProjectDialog v-if="showDialog" @close="showDialog = false" />
+    <PickExampleDialog v-if="showPick" @close="showPick = false" />
   </div>
 </template>
 
@@ -71,6 +77,7 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
+import PickExampleDialog from '../components/PickExampleDialog.vue'
 import { formatWords, idbGet, lsGet, timeAgo } from '../core/storage'
 import { pickDirectory } from '../services/picker'
 import { useProjectStore } from '../stores/project'
@@ -80,6 +87,7 @@ const router = useRouter()
 const project = useProjectStore()
 
 const showDialog = ref(false)
+const showPick = ref(false)
 const opening = ref(false)
 const recentProjects = ref<RecentProject[]>(lsGet<RecentProject[]>('recentProjects', []))
 
@@ -226,6 +234,22 @@ async function startDemo() {
 
 .demo-row {
   margin-top: 10px;
+  font-size: 12.5px;
+  color: var(--text-3);
+}
+
+.imitate-btn {
+  background: #26211b;
+  border-color: #26211b;
+  color: #fff;
+}
+.imitate-btn:hover {
+  background: #3a332a;
+  border-color: #3a332a;
+  color: #fff;
+}
+.imitate-hint {
+  margin-top: 12px;
   font-size: 12.5px;
   color: var(--text-3);
 }
