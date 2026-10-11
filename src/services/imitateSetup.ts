@@ -44,6 +44,11 @@ export async function setupImitateProject(exampleName: string, text: string): Pr
   }
 
   imitate.start(exampleName, text)
-  // 自动开始第 1 步解析；失败（如未配置 API Key）落在 store.error 与对话流里展示
-  void imitate.runParse('world')
+  // 第一步解析失败 → 不留项目：真实项目删除文件夹，演示项目直接关闭，错误抛回弹窗展示
+  const ok = await imitate.runParse('world')
+  if (!ok) {
+    const msg = imitate.error || '解析失败'
+    await imitate.cancel()
+    throw new Error(msg)
+  }
 }

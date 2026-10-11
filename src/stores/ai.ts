@@ -27,10 +27,17 @@ export const BUILTIN_PROVIDERS: AIProviderConfig[] = [
 export function loadProviders(): AIProviderConfig[] {
   const saved = lsGet<AIProviderConfig[]>('aiProviders', [])
   if (!saved.length) return BUILTIN_PROVIDERS.map((p) => ({ ...p }))
-  // 保证内置供应商字段跟随版本更新
+  // 保证内置供应商字段跟随版本更新；用户改过的 baseUrl / apiKey / model 保留
   return saved.map((p) => {
     const builtin = BUILTIN_PROVIDERS.find((b) => b.id === p.id)
-    return builtin ? { ...builtin, apiKey: p.apiKey, model: p.model, models: p.models?.length ? p.models : builtin.models } : p
+    if (!builtin) return p
+    return {
+      ...builtin,
+      baseUrl: p.baseUrl || builtin.baseUrl,
+      apiKey: p.apiKey,
+      model: p.model || builtin.model,
+      models: p.models?.length ? p.models : builtin.models,
+    }
   })
 }
 

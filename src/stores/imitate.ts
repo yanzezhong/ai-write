@@ -12,6 +12,7 @@ import {
   personReviseMessages,
   polishMessages,
   regenOutlineMessages,
+  regenScenesMessages,
   segmentGenerateMessages,
   segmentReviseMessages,
   styleParseMessages,
@@ -250,9 +251,11 @@ export const useImitateStore = defineStore('imitate', {
 
     // ---------- 解析阶段 ----------
 
-    async runParse(step: ImitateStep): Promise<void> {
+    /** 解析一步。返回是否成功（失败信息在 error / 对话流里） */
+    async runParse(step: ImitateStep): Promise<boolean> {
       this.generating = true
       this.error = ''
+      let ok = true
       try {
         const p = this.needProvider()
         const messages =
@@ -274,11 +277,13 @@ export const useImitateStore = defineStore('imitate', {
         this.chat.push({ role: 'assistant', content: notes[step] })
         await this.save()
       } catch (err) {
+        ok = false
         this.error = err instanceof Error ? err.message : String(err)
         this.chat.push({ role: 'assistant', content: `解析失败：${this.error}。可以点击「重新解析」重试。` })
       } finally {
         this.generating = false
       }
+      return ok
     },
 
     applyParseResult(step: ImitateStep, full: string): void {
@@ -492,8 +497,7 @@ export const useImitateStore = defineStore('imitate', {
     },
 
     /** 重新生成大纲（保留锁定章，其余按意见重排） */
-    async regenOutline(opinion: string): Promise<void> {
-      const p = this.needProvider()
+    async regenOutline(opinion: string): Promise<void> {      const p = this.needProvider()
       this.generating = true
       this.error = ''
       try {
@@ -525,6 +529,25 @@ export const useImitateStore = defineStore('imitate', {
             scenes: (o.scenes ?? []).map((s) => ({ id: uid(), title: s.title, desc: s.desc })),
           }
         })
+        await this.save()
+      } catch (err) {
+        this.error = err instanceof Error ? err.message : String(err)
+      } finally {
+        this.generating = false
+      }
+    },
+
+    /** 单章重新生成场景序列（章标题/概要保留） */
+    async regenScenes(chapterId: string, opinion = ''): Promise<void> {
+      const p = this.needProvider()
+      const c = this.outline.find((o) => o.id === chapterId)
+      if (!c) return
+      this.generating = true
+      this.error = ''
+      try {
+        const full = await this.stream(p, regenScenesMessages(c.chapter, c.summary, opinion))
+        const items = extractJson<{ title: string; desc: string }[]>(full)
+        c.scenes = items.map((s) => ({ id: uid(), title: s.title || '新场景', desc: s.desc || '' }))
         await this.save()
       } catch (err) {
         this.error = err instanceof Error ? err.message : String(err)

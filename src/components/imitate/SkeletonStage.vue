@@ -95,6 +95,7 @@
             <span class="drag-handle" :title="o.locked ? '已锁定，不可拖动' : '拖动排序'" :class="{ off: o.locked }">⠿</span>
             <input v-model="o.chapter" class="input ch-title" :disabled="o.locked" @input="o.dirty = true" />
             <span class="row-tools">
+              <button class="mini" :disabled="o.locked || imitate.generating" title="AI 重新生成本章场景序列" @click="imitate.regenScenes(o.id)">🔄 场景</button>
               <button class="mini" :disabled="o.locked || !o.dirty || imitate.generating" title="AI 优化本章概要" @click="imitate.aiPolish('chapter-summary', o.id)">✨</button>
               <button class="mini" :class="{ on: o.locked }" @click="imitate.toggleLock('chapter', o.id)">
                 {{ o.locked ? '🔒' : '🔓' }}

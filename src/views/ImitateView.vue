@@ -72,6 +72,7 @@
               <div v-for="w in imitate.world" :key="w.id" class="w-row">
                 <input v-model="w.name" class="input w-name" @input="w.dirty = true" />
                 <textarea v-model="w.detail" class="input w-detail" rows="2" @input="w.dirty = true"></textarea>
+                <button class="w-del" title="删除此条目" @click="imitate.removeAt('world', w.id)">✕</button>
               </div>
               <p v-if="!imitate.world.length" class="empty">还没有解析结果</p>
             </template>
@@ -500,6 +501,7 @@ onMounted(async () => {
 .w-row {
   display: flex;
   gap: 8px;
+  align-items: flex-start;
 }
 .w-name {
   width: 180px;
@@ -509,6 +511,20 @@ onMounted(async () => {
 .w-detail {
   flex: 1;
   resize: vertical;
+}
+.w-del {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  color: var(--text-3);
+  font-size: 13px;
+  transition: all 0.12s;
+}
+.w-del:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .p-card {

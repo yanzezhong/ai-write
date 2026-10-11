@@ -42,9 +42,18 @@
       <aside class="side">
         <div class="side-head">
           <span class="side-title">资料库</span>
-          <button class="icon-btn" title="导入文件" :disabled="busy" @click="pickImport()">
+          <button class="icon-btn" title="导入文件 / 粘贴文字" :disabled="busy" @click="plusMenu = !plusMenu">
             <AppIcon name="plus" :size="16" />
           </button>
+          <!-- 加号菜单：导入文件 / 粘贴文字 -->
+          <div v-if="plusMenu" class="plus-menu">
+            <button class="plus-item" @click="plusMenu = false; pickImport()">
+              <AppIcon name="file" :size="14" /> 导入文件…
+            </button>
+            <button class="plus-item" @click="plusMenu = false; pasteModal = true; pasteName = ''; pasteText = ''">
+              <AppIcon name="edit" :size="14" /> 粘贴文字…
+            </button>
+          </div>
         </div>
 
         <div class="view-bar">
@@ -215,6 +224,32 @@
       </div>
     </Teleport>
 
+    <!-- 粘贴文字为资料 -->
+    <Teleport to="body">
+      <div v-if="pasteModal" class="modal-mask" @click.self="pasteModal = false">
+        <div class="modal paste-modal">
+          <div class="modal-head">
+            <span class="modal-title">粘贴文字 → 资料库</span>
+            <button class="icon-btn" @click="pasteModal = false"><AppIcon name="close" :size="16" /></button>
+          </div>
+          <input v-model="pasteName" class="input" placeholder="资料标题，如：赛博朋克城市描写参考" />
+          <textarea
+            v-model="pasteText"
+            class="input paste-area"
+            rows="10"
+            placeholder="把文字粘贴到这里，保存后成为资料库中的一篇文章（只读资料，可打标签、可被 AI 引用）"
+          ></textarea>
+          <p class="paste-meta">{{ pasteText.length }} 字 · 保存为 {{ (pasteName.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ') || '未命名资料') }}.md</p>
+          <div class="modal-foot">
+            <button class="btn" @click="pasteModal = false">取消</button>
+            <button class="btn primary" :disabled="busy || !pasteName.trim() || !pasteText.trim()" @click="savePastedText">
+              {{ busy ? '保存中…' : '保存到资料库' }}
+            </button>
+          </div>
+        </div>
+      </div>
+    </Teleport>
+
     <!-- 只读预览中的选中 AI（仅复制；插入/替换对只读资料不可用） -->
     <SelectionToolbar @action="openAIDialog" />
     <AIDialog v-if="aiDialog" :action-id="aiDialog.actionId" read-only @close="aiDialog = null" />
@@ -256,6 +291,10 @@ const newGroupType = ref<'normal' | 'exclusive'>('normal')
 const previewText = ref('')
 const fileInput = ref<HTMLInputElement | null>(null)
 let replaceTarget: string | null = null
+const plusMenu = ref(false)
+const pasteModal = ref(false)
+const pasteName = ref('')
+const pasteText = ref('')
 
 const binary = computed(
   () => !!library.previewFile && !library.isText(library.previewFile),
@@ -311,6 +350,25 @@ function groupName(id: string): string {
 
 function tagsOfGroup(groupId: string): LibraryTag[] {
   return library.tags.filter((t) => t.groupId === groupId)
+}
+
+function savePastedText() {
+  const name = pasteName.value.trim().replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ')
+  if (!name || !pasteText.value.trim()) return
+  busy.value = true
+  library
+    .importData(`${name}.md`, new TextEncoder().encode(pasteText.value))
+    .then(async () => {
+      library.previewFile = `${name}.md`
+      pasteModal.value = false
+      previewText.value = pasteText.value
+    })
+    .catch((err) => {
+      error.value = err instanceof Error ? err.message : String(err)
+    })
+    .finally(() => {
+      busy.value = false
+    })
 }
 
 // ---------- 导入 / 替换 / 删除 ----------
@@ -900,5 +958,73 @@ function openInViewer() {
 }
 .icon-btn.danger:hover {
   color: var(--accent);
+}
+
+/* 加号菜单 */
+.side-head {
+  position: relative;
+}
+.plus-menu {
+  position: absolute;
+  right: 8px;
+  top: 38px;
+  z-index: 30;
+  min-width: 150px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+}
+.plus-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 13px;
+  color: var(--text-2);
+  text-align: left;
+}
+.plus-item:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* 粘贴文字弹窗 */
+.paste-modal {
+  width: 560px;
+  max-width: calc(100vw - 48px);
+}
+.paste-modal .modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+.paste-modal .input {
+  margin-bottom: 10px;
+}
+.paste-area {
+  resize: vertical;
+  line-height: 1.7;
+  font-size: 13px;
+}
+.paste-meta {
+  font-size: 12px;
+  color: var(--text-3);
+  text-align: right;
+  margin: 6px 0 10px;
+}
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
 }
 </style>

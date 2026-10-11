@@ -163,8 +163,7 @@ export function polishMessages(kind: string, content: string, styleNote: string)
 
 // ---------- 骨架编辑：批量修改（PRD §8.6） ----------
 
-export function batchWorldMessages(items: WorldItem[], opinion: string, styleNote: string): ChatMessage[] {
-  return [
+export function batchWorldMessages(items: WorldItem[], opinion: string, styleNote: string): ChatMessage[] {  return [
     jsonSystemPrompt(
       '用户要对一批世界观条目做整体调整。返回 JSON 数组（元素含 name、detail），条目数量与输入一致、顺序一致，仅按用户意见调整内容，保持条目之间的逻辑一致性。',
     ),
@@ -296,6 +295,19 @@ export function segmentReviseMessages(
     {
       role: 'user',
       content: `${skeletonContext(args)}\n\n【本章】${outlineItem.chapter}：${outlineItem.summary}\n\n当前草稿：\n${currentText}\n\n修改意见：${opinion}`,
+    },
+  ]
+}
+
+/** 骨架：为单章重新生成场景序列（保留章标题与概要，仅重排场景） */
+export function regenScenesMessages(chapter: string, summary: string, opinion: string): ChatMessage[] {
+  return [
+    jsonSystemPrompt(
+      '请为这一章重新设计场景序列。返回 JSON 数组，每个元素包含 title（场景标题）和 desc（场景描述，100 字内、具体可执行），3-4 个场景，按剧情推进排序。',
+    ),
+    {
+      role: 'user',
+      content: `章节：${chapter}\n本章概要：${summary}\n${opinion ? `调整意见：${opinion}` : '请按概要设计最佳场景序列。'}\n只输出场景 JSON 数组。`,
     },
   ]
 }

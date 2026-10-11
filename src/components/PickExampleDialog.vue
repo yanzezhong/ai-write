@@ -68,7 +68,7 @@
         <div class="dlg-foot">
           <button class="btn" @click="emit('close')">取消</button>
           <button class="btn primary" :disabled="!canStart || busy" @click="start">
-            {{ busy ? '创建项目中…' : '开始解析' }}
+            {{ busy ? '解析例文中…' : '开始解析' }}
           </button>
         </div>
       </div>
