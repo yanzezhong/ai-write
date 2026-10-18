@@ -104,8 +104,18 @@
         <button class="icon-btn" @click="closeEditor"><AppIcon name="back" :size="17" /></button>
         <strong class="edit-name">{{ editing.name }}</strong>
         <span class="sub-tip">{{ editWords }} 字 · 自动保存</span>
+        <button class="icon-btn menu" title="应用抽屉" aria-label="应用抽屉" @click="drawerOpen = true">
+          <AppIcon name="menu" :size="18" />
+        </button>
       </header>
       <MobileEditor :key="editing.path" :path="editing.path" :initial="text" @saved="editWords = $event" />
+      <MobileAppDrawer
+        v-if="drawerOpen"
+        :current-path="editing.path"
+        :outline-text="outlineText"
+        @close="drawerOpen = false"
+        @switch-doc="switchDoc"
+      />
     </template>
 
     <!-- 文档长按操作弹层 -->
@@ -127,6 +137,7 @@ import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import MobileEditor from '../components/mobile/MobileEditor.vue'
+import MobileAppDrawer from '../components/mobile/MobileAppDrawer.vue'
 import { getFS } from '../core/fs'
 import { formatWords } from '../core/storage'
 import { renderMd } from '../services/md'
@@ -144,6 +155,7 @@ const editing = ref<DocEntry | null>(null)
 const text = ref('')
 const editWords = ref(0)
 const docMenu = ref<DocEntry | null>(null)
+const drawerOpen = ref(false)
 
 const chapters = computed(() => project.docs.filter((d) => d.path.startsWith('chapters/')))
 const notes = computed(() => project.docs.filter((d) => d.path.startsWith('notes/')))
@@ -173,6 +185,12 @@ function closeEditor() {
   editing.value = null
   page.value = 'docs'
   void project.refresh()
+}
+
+/** 应用抽屉内切换文档 */
+async function switchDoc(d: DocEntry) {
+  drawerOpen.value = false
+  await openDoc(d)
 }
 
 /* ---------- 长按操作 ---------- */
@@ -319,6 +337,11 @@ async function deleteDoc() {
   gap: 10px;
   padding: 10px 16px;
   border-bottom: 1px solid var(--line);
+}
+.sub-bar .icon-btn {
+  width: 44px;
+  height: 44px;
+  flex: none;
 }
 .sub-tip {
   margin-left: auto;

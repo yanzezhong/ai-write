@@ -125,6 +125,9 @@
       <path d="M12 4v10m0 0 4-4m-4 4-4-4" />
       <path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
     </template>
+    <template v-else-if="name === 'menu'">
+      <path d="M4 6h16M4 12h16M4 18h16" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />
     </template>

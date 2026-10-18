@@ -83,6 +83,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useImitateStore } from '../../../stores/imitate'
+import { ensureNotifyPermission, notifyDone } from '../../../services/notify'
 
 const imitate = useImitateStore()
 const router = useRouter()
@@ -119,6 +120,7 @@ watch(
 
 async function doGenerate() {
   generatingNow.value = true
+  void ensureNotifyPermission()
   try {
     await imitate.segmentGenerate()
   } catch {
@@ -152,7 +154,10 @@ function jumpTo(i: number) {
 
 async function next() {
   const done = await imitate.segmentNext()
-  if (done) finishModal.value = true
+  if (done) {
+    finishModal.value = true
+    notifyDone('仿写生成完成', `《${imitate.sourceName}》全部 ${imitate.outline.length} 章已生成。`)
+  }
 }
 
 function keepPolishing() {

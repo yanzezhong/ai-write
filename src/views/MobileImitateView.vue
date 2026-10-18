@@ -207,6 +207,7 @@ import AppIcon from '../components/AppIcon.vue'
 import MobileSkeletonStage from '../components/mobile/imitate/MobileSkeletonStage.vue'
 import MobileSegmentStage from '../components/mobile/imitate/MobileSegmentStage.vue'
 import { renderMd } from '../services/md'
+import { ensureNotifyPermission, notifyDone } from '../services/notify'
 import { STEPS, STEP_INDEX, useImitateStore, type ImitateStep } from '../stores/imitate'
 import { useProjectStore } from '../stores/project'
 import { getFS } from '../core/fs'
@@ -303,6 +304,7 @@ function toHome() {
 async function generateAll() {
   genBusy.value = true
   imitate.error = ''
+  void ensureNotifyPermission()
   try {
     await imitate.generateAll((done, total, chapter) => {
       genDone.value = done
@@ -311,6 +313,7 @@ async function generateAll() {
     })
     genSheet.value = false
     await loadStats()
+    notifyDone('仿写生成完成', `《${imitate.sourceName}》全部 ${imitate.outline.length} 章已生成。`)
   } catch {
     /* 错误已落在 imitate.error，弹层保持打开供重试 */
   } finally {
