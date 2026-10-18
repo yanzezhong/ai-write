@@ -6,9 +6,9 @@
 
 ## 阶段 0 · 存储与响应式基建（硬障碍，最先做）
 
-- [ ] **V4-0.1** 新增 `MobileFSAdapter`：基于 OPFS，实现既有 FSAdapter 全部接口（PRD §2.1）
-- [ ] **V4-0.2** 启动时自动探测环境：支持 File System Access → `WebFSAdapter`，否则 → `MobileFSAdapter`，业务层零改动
-- [ ] **V4-0.3** 项目 zip 导出（OPFS 打包下载）+ zip 导入（解压进 OPFS）（PRD §2.1/§六）
+- [x] **V4-0.1** 新增 `MobileFSAdapter`：基于 OPFS，实现既有 FSAdapter 全部接口（PRD §2.1）
+- [x] **V4-0.2** 启动时自动探测环境：支持 File System Access → `WebFSAdapter`，否则 → `MobileFSAdapter`，业务层零改动
+- [x] **V4-0.3** 项目 zip 导出（OPFS 打包下载）+ zip 导入（解压进 OPFS）（PRD §2.1/§六）
 - [ ] **V4-0.4** 响应式入口：`<768px` 断点切换移动端布局，同一套 Vue 3 代码（PRD §2.2）
 - [ ] **V4-0.5** 触屏基础组件库：底部 Sheet、底部抽屉、浮动工具条、全屏对话框（PRD §5.1，手势关闭 + ≥44×44pt 热区）
 
