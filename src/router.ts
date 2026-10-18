@@ -1,9 +1,17 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { isMobileEnv } from './core/mobileFS'
 
 export const router = createRouter({
   history: createWebHashHistory(),
   routes: [
-    { path: '/', name: 'home', component: () => import('./views/HomeView.vue') },
+    // 手机端（无 File System Access、支持 OPFS）使用移动端首页
+    {
+      path: '/',
+      name: 'home',
+      component: isMobileEnv()
+        ? () => import('./views/MobileHomeView.vue')
+        : () => import('./views/HomeView.vue'),
+    },
     { path: '/workspace', name: 'workspace', component: () => import('./views/WorkspaceView.vue') },
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
     { path: '/imitate', name: 'imitate', component: () => import('./views/ImitateView.vue') },

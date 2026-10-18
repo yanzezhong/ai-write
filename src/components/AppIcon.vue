@@ -121,6 +121,10 @@
       <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
       <path d="M9 4v14M15 6v14" />
     </template>
+    <template v-else-if="name === 'download'">
+      <path d="M12 4v10m0 0 4-4m-4 4-4-4" />
+      <path d="M4 17v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2" />
+    </template>
     <template v-else>
       <circle cx="12" cy="12" r="9" />
     </template>

@@ -72,6 +72,11 @@ async function resolveFile(root: FileSystemDirectoryHandle, path: string): Promi
 export class MobileFSAdapter implements FSAdapter {
   constructor(private projectRoot: FileSystemDirectoryHandle) {}
 
+  /** 项目根目录句柄（写入 project store 的 rootHandle 用） */
+  get root(): FileSystemDirectoryHandle {
+    return this.projectRoot
+  }
+
   async readFile(path: string): Promise<string> {
     const handle = await resolveFile(this.projectRoot, path)
     const file = await handle.getFile()
@@ -159,6 +164,9 @@ export interface MobileProjectMeta {
   name: string
   createdAt: number
   updatedAt: number
+  /** 最近打开时统计的文档数/字数（首页卡片展示用） */
+  docCount?: number
+  wordCount?: number
 }
 
 const REGISTRY_KEY = 'mobileProjects'
@@ -234,4 +242,13 @@ export async function deleteMobileProject(id: string): Promise<void> {
 /** 更新项目的最近使用时间 */
 export function touchMobileProject(id: string): void {
   saveRegistry(loadRegistry().map((m) => (m.id === id ? { ...m, updatedAt: Date.now() } : m)))
+}
+
+/** 更新项目统计信息（打开项目后回写，供首页卡片展示） */
+export function updateMobileProjectStats(id: string, stats: { docCount: number; wordCount: number }): void {
+  saveRegistry(
+    loadRegistry().map((m) =>
+      m.id === id ? { ...m, docCount: stats.docCount, wordCount: stats.wordCount, updatedAt: Date.now() } : m,
+    ),
+  )
 }

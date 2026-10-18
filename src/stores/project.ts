@@ -107,6 +107,43 @@ export const useProjectStore = defineStore('project', {
       await this.openWithHandle(dir)
     },
 
+    /** 手机端：在 OPFS 中新建项目并打开 */
+    async createMobile(name: string) {
+      const trimmed = name.trim()
+      if (!trimmed) throw new Error('项目名称不能为空')
+      const { createMobileProject } = await import('../core/mobileFS')
+      const meta: ProjectMeta = { name: trimmed, createdAt: Date.now(), schema: PROJECT_SCHEMA }
+      const initial: Record<string, string> = {
+        'project.json': JSON.stringify(meta, null, 2),
+        'outline.md': `# ${trimmed} · 剧情大纲\n\n`,
+      }
+      const { fs, meta: mobileMeta } = await createMobileProject(trimmed, initial)
+      await fs.createDir('chapters')
+      await fs.createDir('characters')
+      await fs.createDir('worldview')
+      await fs.createDir('notes')
+      await this.openMobile(mobileMeta.id)
+    },
+
+    /** 手机端：打开 OPFS 中的已有项目 */
+    async openMobile(id: string) {
+      const { openMobileProject, updateMobileProjectStats } = await import('../core/mobileFS')
+      const fs = await openMobileProject(id)
+      if (!fs) throw new Error('项目不存在或已被删除')
+      setFS(fs)
+      this.rootHandle = fs.root
+      this.isDemo = false
+      try {
+        this.meta = JSON.parse(await fs.readFile('project.json')) as ProjectMeta
+      } catch {
+        this.meta = { name: fs.root.name, createdAt: Date.now(), schema: PROJECT_SCHEMA }
+      }
+      await this.refresh()
+      updateMobileProjectStats(id, this.stats)
+      const { recordSession } = await import('../services/session')
+      recordSession()
+    },
+
     /** 演示模式（通用）：以自定义名称与文件种子打开内存项目（一键仿写用） */
     async openDemoProject(name: string, files: Record<string, string>) {
       const { MemoryFSAdapter } = await import('../core/memoryFS')
