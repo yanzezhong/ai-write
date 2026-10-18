@@ -98,14 +98,14 @@
       </main>
     </template>
 
-    <!-- 子页：编辑器（基础版，阶段 2 升级为所见即所得） -->
+    <!-- 子页：编辑器（M3 所见即所得单模式 + 底部格式条） -->
     <template v-else-if="page === 'edit' && editing">
       <header class="sub-bar">
         <button class="icon-btn" @click="closeEditor"><AppIcon name="back" :size="17" /></button>
         <strong class="edit-name">{{ editing.name }}</strong>
-        <span class="sub-tip">{{ text.length }} 字 · 自动保存</span>
+        <span class="sub-tip">{{ editWords }} 字 · 自动保存</span>
       </header>
-      <textarea v-model="text" class="edit-area" :placeholder="editing.path.startsWith('chapters') ? '开始写作…' : '记录点什么…'"></textarea>
+      <MobileEditor :key="editing.path" :path="editing.path" :initial="text" @saved="editWords = $event" />
     </template>
 
     <!-- 文档长按操作弹层 -->
@@ -123,9 +123,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
+import MobileEditor from '../components/mobile/MobileEditor.vue'
 import { getFS } from '../core/fs'
 import { formatWords } from '../core/storage'
 import { renderMd } from '../services/md'
@@ -141,12 +142,11 @@ const outlineText = ref('')
 const hasOutline = ref(false)
 const editing = ref<DocEntry | null>(null)
 const text = ref('')
+const editWords = ref(0)
 const docMenu = ref<DocEntry | null>(null)
 
 const chapters = computed(() => project.docs.filter((d) => d.path.startsWith('chapters/')))
 const notes = computed(() => project.docs.filter((d) => d.path.startsWith('notes/')))
-
-let saveTimer: ReturnType<typeof setTimeout> | null = null
 
 onMounted(async () => {
   const fs = getFS()
@@ -164,33 +164,16 @@ async function openDoc(d: DocEntry) {
   const fs = getFS()
   editing.value = d
   text.value = await fs.readFile(d.path).catch(() => '')
+  editWords.value = text.value.replace(/\s/g, '').length
   page.value = 'edit'
 }
 
 function closeEditor() {
-  flushSave()
+  // MobileEditor 卸载时会自动落盘最后一次修改
   editing.value = null
   page.value = 'docs'
   void project.refresh()
 }
-
-function flushSave() {
-  if (saveTimer) {
-    clearTimeout(saveTimer)
-    saveTimer = null
-  }
-  const d = editing.value
-  if (!d) return
-  void getFS()
-    .writeFile(d.path, text.value)
-    .catch((err) => console.error('[自动保存]', err))
-}
-
-// 防抖自动保存（编辑即保存，PRD §4.2）
-watch(text, () => {
-  if (saveTimer) clearTimeout(saveTimer)
-  saveTimer = setTimeout(flushSave, 600)
-})
 
 /* ---------- 长按操作 ---------- */
 
@@ -399,18 +382,6 @@ async function deleteDoc() {
   font-size: 13px;
   line-height: 1.6;
   white-space: pre-wrap;
-}
-
-.edit-area {
-  flex: 1;
-  width: 100%;
-  border: none;
-  outline: none;
-  resize: none;
-  padding: 16px;
-  background: var(--card);
-  font-size: 16px;
-  line-height: 1.8;
 }
 
 .mask {
