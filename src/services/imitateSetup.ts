@@ -31,10 +31,13 @@ export async function setupImitateProject(exampleName: string, text: string): Pr
 
   if (project.isDemo || isDemoGlobalLibrary()) {
     await project.openDemoProject(name, imitateDemoSeed(name, exampleName, text))
+  } else if (!isFSAccessSupported()) {
+    // 手机端：在 OPFS 中创建仿写项目（与首页新建项目同一存储）
+    await project.createMobile(name)
+    const fs = getFS()
+    await fs.createDir('worldbuilding')
+    await fs.writeFile('worldbuilding/例文原文.md', `# 例文：${exampleName}\n\n${text}\n`)
   } else {
-    if (!isFSAccessSupported()) {
-      throw new Error('当前浏览器不支持文件夹选择。请使用 Chrome / Edge，或先在首页使用演示模式。')
-    }
     const parent = await pickDirectory()
     await project.create(parent, name)
     const fs = getFS()

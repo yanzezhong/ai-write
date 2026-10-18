@@ -77,7 +77,7 @@
     </Teleport>
 
     <input ref="zipInput" type="file" accept=".zip" class="hidden" @change="onZipChosen" />
-    <PickExampleDialog v-if="showPick" @close="showPick = false" />
+    <MobilePickExampleSheet v-if="showPick" @close="showPick = false" />
   </div>
 </template>
 
@@ -85,7 +85,7 @@
 import { computed, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
-import PickExampleDialog from '../components/PickExampleDialog.vue'
+import MobilePickExampleSheet from '../components/mobile/MobilePickExampleSheet.vue'
 import {
   deleteMobileProject,
   listMobileProjects,

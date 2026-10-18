@@ -16,7 +16,9 @@ export const router = createRouter({
         ? () => import('./views/MobileWorkspaceView.vue')
         : () => import('./views/WorkspaceView.vue') },
     { path: '/library', name: 'library', component: () => import('./views/LibraryView.vue') },
-    { path: '/imitate', name: 'imitate', component: () => import('./views/ImitateView.vue') },
+    { path: '/imitate', name: 'imitate', component: isMobileEnv()
+        ? () => import('./views/MobileImitateView.vue')
+        : () => import('./views/ImitateView.vue') },
     { path: '/settings', name: 'settings', component: () => import('./views/SettingsView.vue') },
   ],
 })
