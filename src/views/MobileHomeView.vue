@@ -3,6 +3,9 @@
     <header class="topbar">
       <span class="brand">AI 写作器</span>
       <div class="top-actions">
+        <button class="icon-btn" title="导出全部备份" @click="backupAll">
+          <AppIcon name="history" :size="18" />
+        </button>
         <button class="icon-btn" title="导入项目 (zip)" @click="pickZip">
           <AppIcon name="download" :size="18" />
         </button>
@@ -20,7 +23,11 @@
     </div>
 
     <main class="list">
-      <p class="list-head">共 {{ projects.length }} 个项目 · 按最近打开排序</p>
+      <p class="list-head">
+        共 {{ projects.length }} 个项目 · 按最近打开排序
+        <span v-if="lastBackup" class="backup-tip">上次备份 {{ timeAgo(lastBackup) }}</span>
+        <span v-else class="backup-tip warn">尚未备份，建议点右上角 🕐 导出备份</span>
+      </p>
       <button
         v-for="p in projects"
         :key="p.id"
@@ -86,7 +93,7 @@ import {
   renameMobileProject,
   type MobileProjectMeta,
 } from '../core/mobileFS'
-import { exportProjectZip, importProjectZip } from '../core/zipTransfer'
+import { exportProjectZip, exportAllProjectsZip, getLastBackupAt, importProjectZip } from '../core/zipTransfer'
 import { formatWords, timeAgo } from '../core/storage'
 import { useProjectStore } from '../stores/project'
 
@@ -100,6 +107,22 @@ const busy = ref(false)
 const showPick = ref(false)
 const menuFor = ref<string | null>(null)
 const zipInput = ref<HTMLInputElement | null>(null)
+const lastBackup = ref<number | null>(getLastBackupAt())
+
+/** 导出全部项目备份（OPFS 有被浏览器清理的风险，PRD §2.3） */
+async function backupAll() {
+  if (busy.value) return
+  busy.value = true
+  try {
+    const fileName = await exportAllProjectsZip()
+    lastBackup.value = getLastBackupAt()
+    alert(`已导出备份：${fileName}`)
+  } catch (err) {
+    alert(err instanceof Error ? err.message : String(err))
+  } finally {
+    busy.value = false
+  }
+}
 
 const menuProject = computed(() => projects.value.find((p) => p.id === menuFor.value) ?? null)
 
@@ -271,6 +294,12 @@ function doDelete() {
   margin: 0 0 8px;
   font-size: 12px;
   color: var(--muted);
+}
+.backup-tip {
+  margin-left: 8px;
+}
+.backup-tip.warn {
+  color: var(--accent);
 }
 
 .proj-card {

@@ -68,8 +68,7 @@ async function unzipToMap(file: File | Blob): Promise<Map<string, string | Uint8
 }
 
 /** 从 zip 导入项目到 OPFS。返回新项目的元信息。 */
-export async function importProjectZip(file: File | Blob, fallbackName = '导入项目'): Promise<MobileProjectMeta> {
-  const files = await unzipToMap(file)
+export async function importProjectZip(file: File | Blob, fallbackName = '导入项目'): Promise<MobileProjectMeta> {  const files = await unzipToMap(file)
   if (!files.size) throw new Error('zip 中没有可导入的文件')
 
   // 项目名：优先 project.json 里的 name，其次 zip 文件名
@@ -95,4 +94,59 @@ export async function importProjectZip(file: File | Blob, fallbackName = '导入
     }
   }
   return meta
+}
+
+/* ---------- 全量备份（首页常驻入口，PRD §2.3 风险对策） ---------- */
+
+const BACKUP_TIME_KEY = 'mobileLastBackupAt'
+
+export function getLastBackupAt(): number | null {
+  const raw = localStorage.getItem(BACKUP_TIME_KEY)
+  return raw ? Number(raw) : null
+}
+
+/** 把 OPFS 内全部项目打包成一个 zip 下载，并记录备份时间。返回文件名。 */
+export async function exportAllProjectsZip(): Promise<string> {
+  const { listMobileProjects, openMobileProject } = await import('./mobileFS')
+  const metas = listMobileProjects()
+  if (!metas.length) throw new Error('还没有项目，无需备份')
+  const zip = new JSZip()
+  for (const meta of metas) {
+    const fs = await openMobileProject(meta.id)
+    if (!fs) continue
+    const folder = zip.folder(`${meta.name.replace(/[\\/:*?"<>|]/g, '_')}-${meta.id}`)!
+    const entries = await fs.listDir('')
+    for (const e of entries) {
+      if (e.kind === 'file') {
+        if (/\.(png|jpe?g|gif|webp|pdf|zip|docx?|xlsx?)$/i.test(e.name)) {
+          folder.file(e.name, await fs.readBinary(e.path))
+        } else {
+          folder.file(e.name, await fs.readFile(e.path))
+        }
+      }
+    }
+    // 二级目录（chapters/notes/characters/worldview 等）
+    for (const e of entries) {
+      if (e.kind !== 'dir') continue
+      const sub = folder.folder(e.name)!
+      for (const f of await fs.listDir(e.path)) {
+        if (f.kind !== 'file') continue
+        if (/\.(png|jpe?g|gif|webp|pdf|zip|docx?|xlsx?)$/i.test(f.name)) {
+          sub.file(f.name, await fs.readBinary(f.path))
+        } else {
+          sub.file(f.name, await fs.readFile(f.path))
+        }
+      }
+    }
+  }
+  const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' })
+  const fileName = `ai-write-backup-${new Date().toISOString().slice(0, 10)}.zip`
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = fileName
+  a.click()
+  URL.revokeObjectURL(url)
+  localStorage.setItem(BACKUP_TIME_KEY, String(Date.now()))
+  return fileName
 }
