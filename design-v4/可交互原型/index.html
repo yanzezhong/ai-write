@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 写作器 · 手机版可交互原型</title>
+<style>
+  :root{
+    --ink:#3d3229; --ink-soft:#7a6e64; --bg:#f5f0e8; --page:#e8e2d9;
+    --accent:#b85c38; --accent-dark:#a04d2e; --paper:#ffffff; --line:#d4ccc3;
+    --gold:#c4a574; --sheet-bg:#faf8f5;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    background:var(--page); color:var(--ink);
+  }
+  .serif{font-family:"Songti SC","STSong","SimSun",serif}
+
+  /* ===== 页面框架 ===== */
+  .topbar{
+    background:var(--ink); color:var(--gold); padding:20px 40px;
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;
+  }
+  .topbar h1{font-size:18px; letter-spacing:3px; font-weight:500}
+  .topbar span{font-size:12px; opacity:.65; letter-spacing:1px}
+  .intro{max-width:1160px; margin:32px auto 8px; padding:0 24px;}
+  .intro h2{font-size:30px; font-weight:400; margin-bottom:10px}
+  .intro p{color:var(--ink-soft); font-size:14px; line-height:1.9; max-width:760px}
+  .intro p b{color:var(--accent)}
+  .stage{
+    max-width:1160px; margin:24px auto 80px; padding:0 24px;
+    display:grid; grid-template-columns:200px 1fr 300px; gap:28px; align-items:start;
+  }
+  @media (max-width:1000px){ .stage{grid-template-columns:1fr; } }
+
+  /* ===== 左侧界面清单 ===== */
+  .rail{position:sticky; top:24px; display:flex; flex-direction:column; gap:4px}
+  .rail .rail-title{font-size:12px; letter-spacing:2px; color:var(--ink-soft); padding:8px 12px}
+  .rail button{
+    text-align:left; background:none; border:none; cursor:pointer;
+    padding:10px 12px; border-radius:8px; font-size:13px; color:var(--ink);
+    display:flex; gap:10px; align-items:baseline; transition:background .15s;
+  }
+  .rail button .no{font-size:11px; color:var(--ink-soft); width:26px; flex-shrink:0}
+  .rail button:hover{background:rgba(61,50,41,.06)}
+  .rail button.active{background:var(--ink); color:var(--bg)}
+  .rail button.active .no{color:var(--gold)}
+
+  /* ===== 手机框 ===== */
+  .phone-wrap{display:flex; justify-content:center}
+  .phone{
+    width:390px; height:800px; background:#1c1713; border-radius:52px;
+    padding:12px; box-shadow:0 24px 64px rgba(61,50,41,.35), inset 0 0 0 2px #443b31;
+    position:relative; flex-shrink:0;
+  }
+  .notch{
+    position:absolute; top:22px; left:50%; transform:translateX(-50%);
+    width:110px; height:26px; background:#1c1713; border-radius:14px; z-index:50;
+  }
+  .screen{
+    width:100%; height:100%; background:var(--bg); border-radius:42px;
+    overflow:hidden; position:relative; display:flex; flex-direction:column;
+  }
+  .statusbar{
+    height:44px; flex-shrink:0; display:flex; justify-content:space-between; align-items:center;
+    padding:0 28px; font-size:13px; font-weight:600; color:var(--ink);
+  }
+  .statusbar .icons{display:flex; gap:5px; align-items:center; font-size:11px}
+  .app-body{flex:1; overflow-y:auto; overflow-x:hidden; position:relative; scrollbar-width:none}
+  .app-body::-webkit-scrollbar{display:none}
+
+  /* ===== 右侧注释 ===== */
+  .notes{position:sticky; top:24px}
+  .note-card{background:var(--paper); border-radius:14px; padding:22px; box-shadow:0 4px 20px rgba(61,50,41,.08)}
+  .note-card .tag{font-size:11px; letter-spacing:2px; color:var(--accent); margin-bottom:8px}
+  .note-card h3{font-size:19px; font-weight:500; margin-bottom:12px}
+  .note-card p{font-size:13px; line-height:1.9; color:var(--ink-soft)}
+  .note-card ul{margin:10px 0 0 18px; font-size:13px; line-height:2; color:var(--ink-soft)}
+  .note-card .tip{
+    margin-top:14px; padding:10px 14px; background:var(--bg); border-radius:8px;
+    font-size:12px; color:var(--ink); line-height:1.8;
+  }
+  .note-card .tip b{color:var(--accent)}
+
+  /* ===== App 内通用组件 ===== */
+  .appbar{
+    display:flex; align-items:center; gap:12px; padding:10px 16px 12px; flex-shrink:0;
+    border-bottom:1px solid var(--line); background:var(--bg);
+  }
+  .appbar .back{
+    width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--paper);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:15px; color:var(--ink);
+    flex-shrink:0;
+  }
+  .appbar .title{flex:1; min-width:0}
+  .appbar .title .t1{font-size:15px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .appbar .title .t2{font-size:11px; color:var(--ink-soft); margin-top:1px}
+  .appbar .icon-btn{
+    width:34px; height:34px; border-radius:50%; border:1px solid var(--line); background:var(--paper);
+    display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; flex-shrink:0;
+  }
+
+  .btn-main{
+    background:var(--accent); color:#fff; border:none; border-radius:12px;
+    padding:14px 20px; font-size:15px; font-weight:600; cursor:pointer; width:100%;
+    transition:background .15s; letter-spacing:1px;
+  }
+  .btn-main:active{background:var(--accent-dark)}
+  .btn-sub{
+    background:var(--paper); color:var(--ink); border:1px solid var(--line); border-radius:12px;
+    padding:12px 18px; font-size:14px; cursor:pointer;
+  }
+  .btn-text{background:none;border:none;color:var(--accent);font-size:14px;cursor:pointer;padding:8px}
+
+  .project-card{
+    background:var(--paper); border-radius:14px; padding:16px; margin:0 16px 12px;
+    cursor:pointer; transition:transform .12s; border:1px solid transparent;
+  }
+  .project-card:active{transform:scale(.98); border-color:var(--accent)}
+  .project-card .pc-head{display:flex; justify-content:space-between; align-items:baseline}
+  .project-card h4{font-size:16px; font-weight:600}
+  .project-card .badge{font-size:10px; background:var(--accent); color:#fff; padding:2px 8px; border-radius:10px}
+  .project-card .badge.b2{background:var(--gold); color:var(--ink)}
+  .project-card .meta{display:flex; gap:14px; margin-top:8px; font-size:12px; color:var(--ink-soft)}
+  .project-card .excerpt{margin-top:8px; font-size:12px; color:var(--ink-soft); line-height:1.6;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+
+  .group-label{font-size:12px; color:var(--ink-soft); letter-spacing:2px; padding:18px 20px 8px; display:flex; justify-content:space-between}
+  .doc-item{
+    display:flex; align-items:center; gap:12px; padding:14px 20px; background:var(--paper);
+    border-bottom:1px solid #efe9df; cursor:pointer;
+  }
+  .doc-item:active{background:var(--sheet-bg)}
+  .doc-item .doc-ic{width:32px;height:32px;border-radius:8px;background:var(--bg);display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+  .doc-item .di-body{flex:1;min-width:0}
+  .doc-item .di-name{font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .doc-item .di-meta{font-size:11px; color:var(--ink-soft); margin-top:2px}
+  .doc-item .chev{color:var(--line); font-size:14px}
+
+  /* 编辑器 */
+  .editor-content{padding:20px 22px 40px; font-size:15px; line-height:2.05}
+  .editor-content h2{font-size:21px; margin-bottom:16px; font-weight:600}
+  .editor-content p{margin-bottom:14px; color:#4a4036}
+  .editor-content p.selected{background:rgba(184,92,56,.13); border-radius:6px; box-shadow:0 0 0 4px rgba(184,92,56,.13); cursor:pointer; position:relative}
+  .editor-content p.selectable{cursor:pointer; transition:background .15s}
+  .editor-content p.selectable:active{background:rgba(184,92,56,.08)}
+  .editor-content .ai-inserted{border-left:3px solid var(--accent); padding-left:12px; color:var(--ink)}
+  .float-toolbar{
+    position:absolute; left:50%; transform:translateX(-50%); z-index:30;
+    background:var(--ink); border-radius:12px; padding:6px; display:flex; gap:2px;
+    box-shadow:0 8px 24px rgba(28,23,19,.4); animation:popIn .18s ease;
+  }
+  .float-toolbar button{
+    background:none; border:none; color:var(--bg); font-size:13px; padding:8px 12px;
+    cursor:pointer; border-radius:8px; white-space:nowrap;
+  }
+  .float-toolbar button:active{background:rgba(255,255,255,.15)}
+  .float-toolbar .ft-ai{color:var(--gold)}
+  .format-bar{
+    flex-shrink:0; background:var(--paper); border-top:1px solid var(--line);
+    display:flex; padding:8px 10px calc(10px + env(safe-area-inset-bottom)); gap:2px; overflow-x:auto;
+  }
+  .format-bar button{
+    min-width:40px; height:38px; border:none; background:none; font-size:14px; color:var(--ink);
+    cursor:pointer; border-radius:8px; font-weight:500; flex-shrink:0;
+  }
+  .format-bar button:active{background:var(--bg)}
+  .format-bar .sep{width:1px; background:var(--line); margin:6px 6px; flex-shrink:0}
+
+  /* 底部弹层 Sheet */
+  .sheet-mask{
+    position:absolute; inset:0; background:rgba(28,23,19,.45); z-index:40;
+    animation:fadeIn .2s ease;
+  }
+  .sheet{
+    position:absolute; left:0; right:0; bottom:0; z-index:41;
+    background:var(--sheet-bg); border-radius:22px 22px 0 0;
+    max-height:78%; display:flex; flex-direction:column;
+    animation:slideUp .25s cubic-bezier(.2,.9,.3,1);
+    box-shadow:0 -8px 32px rgba(28,23,19,.25);
+  }
+  .sheet .grab{width:40px; height:4px; border-radius:2px; background:var(--line); margin:10px auto 4px; flex-shrink:0}
+  .sheet .sheet-head{padding:8px 20px 12px; border-bottom:1px solid var(--line); flex-shrink:0}
+  .sheet .sheet-head h4{font-size:16px; font-weight:600}
+  .sheet .sheet-head p{font-size:12px; color:var(--ink-soft); margin-top:2px}
+  .sheet .sheet-body{overflow-y:auto; padding:16px 20px; flex:1; scrollbar-width:none}
+  .sheet .sheet-body::-webkit-scrollbar{display:none}
+  .sheet .sheet-foot{padding:12px 20px calc(18px + env(safe-area-inset-bottom)); border-top:1px solid var(--line); flex-shrink:0; display:flex; gap:10px}
+
+  .seg-tabs{display:flex; background:#ece5da; border-radius:10px; padding:3px; margin-bottom:14px}
+  .seg-tabs button{
+    flex:1; border:none; background:none; padding:8px; font-size:13px; border-radius:8px;
+    cursor:pointer; color:var(--ink-soft);
+  }
+  .seg-tabs button.on{background:var(--paper); color:var(--ink); font-weight:600; box-shadow:0 1px 4px rgba(61,50,41,.12)}
+
+  .file-row{
+    display:flex; align-items:center; gap:10px; padding:12px; border:1px solid var(--line);
+    border-radius:10px; margin-bottom:8px; cursor:pointer; background:var(--paper); font-size:13px;
+  }
+  .file-row.on{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent)}
+  .file-row .fr-name{flex:1}
+  .file-row .fr-meta{font-size:11px; color:var(--ink-soft)}
+  textarea.paste-box{
+    width:100%; height:150px; border:1px solid var(--line); border-radius:10px; padding:12px;
+    font-size:13px; line-height:1.8; resize:none; font-family:inherit; background:var(--paper); color:var(--ink);
+  }
+
+  /* AI 结果 */
+  .ai-quote{
+    background:var(--bg); border-radius:10px; padding:10px 14px; font-size:12px; color:var(--ink-soft);
+    line-height:1.7; margin-bottom:12px; border-left:3px solid var(--gold);
+  }
+  .ai-result{
+    background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:14px 16px;
+    font-size:14px; line-height:2; color:var(--ink); margin-bottom:12px;
+  }
+  .ai-result .cursor-blink{display:inline-block; width:8px; height:16px; background:var(--accent); vertical-align:-2px; animation:blink 0.8s infinite}
+  .apply-row{display:flex; gap:8px}
+  .apply-row .btn-sub{flex:1; font-size:13px; padding:11px 6px}
+  .apply-row .btn-sub.primary{background:var(--accent); color:#fff; border-color:var(--accent)}
+
+  /* 步骤条 */
+  .step-bar{
+    display:flex; padding:12px 16px; gap:4px; flex-shrink:0; background:var(--bg); border-bottom:1px solid var(--line);
+  }
+  .step-bar .st{
+    flex:1; text-align:center; font-size:10px; color:var(--ink-soft); padding-top:16px; position:relative;
+  }
+  .step-bar .st::before{
+    content:""; position:absolute; top:6px; left:50%; transform:translateX(-50%);
+    width:8px; height:8px; border-radius:50%; background:var(--line);
+  }
+  .step-bar .st.done{color:var(--accent);}
+  .step-bar .st.done::before{background:var(--accent)}
+  .step-bar .st.now{color:var(--ink); font-weight:700}
+  .step-bar .st.now::before{background:var(--accent); box-shadow:0 0 0 4px rgba(184,92,56,.2)}
+
+  .entry-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:12px; padding:14px 16px; margin-bottom:10px;
+  }
+  .entry-card .ec-name{font-size:14px; font-weight:600; margin-bottom:4px; display:flex; justify-content:space-between; align-items:center}
+  .entry-card .ec-desc{font-size:12px; color:var(--ink-soft); line-height:1.8}
+  .entry-card.locked{border-color:var(--ink); background:#efe9df}
+  .entry-card.locked .ec-desc{color:#a89c8f}
+  .lock-btn{
+    width:34px; height:34px; border-radius:8px; border:1px solid var(--line); background:var(--paper);
+    cursor:pointer; font-size:14px; flex-shrink:0;
+  }
+  .ai-btn{
+    font-size:11px; border:1px solid var(--accent); color:var(--accent); background:none;
+    border-radius:14px; padding:4px 10px; cursor:pointer;
+  }
+  .ai-btn:disabled{opacity:.35; border-color:var(--ink-soft); color:var(--ink-soft)}
+
+  .char-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:16px; margin-bottom:12px;
+  }
+  .char-card .cc-head{display:flex; align-items:center; gap:12px; margin-bottom:8px}
+  .char-card .avatar{width:44px; height:44px; border-radius:50%; background:linear-gradient(135deg,var(--accent),var(--gold));
+    display:flex; align-items:center; justify-content:center; color:#fff; font-size:18px; flex-shrink:0}
+  .char-card .cc-name{font-size:15px; font-weight:600}
+  .char-card .cc-role{font-size:11px; color:var(--ink-soft)}
+  .char-card .tags{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+  .char-card .tag-chip{font-size:11px; background:var(--bg); border-radius:10px; padding:3px 10px; color:var(--ink-soft)}
+
+  .outline-node{background:var(--paper); border:1px solid var(--line); border-radius:12px; margin-bottom:10px; overflow:hidden}
+  .outline-node .on-head{padding:13px 16px; font-size:14px; font-weight:600; display:flex; justify-content:space-between; align-items:center}
+  .outline-node .scene{padding:10px 16px 10px 28px; border-top:1px solid #efe9df; font-size:12px; color:var(--ink-soft); line-height:1.7; display:flex; gap:8px}
+  .outline-node .scene::before{content:"·"; color:var(--accent); font-weight:700}
+
+  .chat-bar{
+    flex-shrink:0; background:var(--paper); border-top:1px solid var(--line);
+    padding:10px 14px calc(12px + env(safe-area-inset-bottom)); display:flex; gap:8px; align-items:center;
+  }
+  .chat-bar input{
+    flex:1; border:1px solid var(--line); border-radius:20px; padding:10px 16px; font-size:13px;
+    background:var(--sheet-bg); font-family:inherit; outline:none;
+  }
+  .chat-bar .send{width:38px; height:38px; border-radius:50%; background:var(--accent); color:#fff; border:none; cursor:pointer; font-size:15px; flex-shrink:0}
+
+  .parse-foot{flex-shrink:0; display:flex; gap:10px; padding:10px 16px calc(14px + env(safe-area-inset-bottom)); background:var(--bg); border-top:1px solid var(--line)}
+  .parse-foot .btn-sub{flex:1}
+  .parse-foot .btn-main{flex:2; padding:12px}
+
+  .top-tabs{display:flex; background:var(--bg); border-bottom:1px solid var(--line); flex-shrink:0; padding:0 8px}
+  .top-tabs button{
+    flex:1; background:none; border:none; padding:13px 4px; font-size:13px; color:var(--ink-soft);
+    cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;
+  }
+  .top-tabs button.on{color:var(--accent); font-weight:700; border-bottom-color:var(--accent)}
+
+  .mode-card{
+    background:var(--paper); border:1px solid var(--line); border-radius:14px; padding:18px; margin-bottom:12px; cursor:pointer;
+  }
+  .mode-card:active{border-color:var(--accent)}
+  .mode-card h5{font-size:15px; margin-bottom:4px}
+  .mode-card p{font-size:12px; color:var(--ink-soft); line-height:1.7}
+
+  .progress-wrap{padding:60px 32px; text-align:center}
+  .progress-ring{font-size:44px; margin-bottom:20px; animation:pulse 1.4s ease infinite}
+  .progress-bar{height:6px; background:#e5ddd2; border-radius:3px; overflow:hidden; margin:22px 0 12px}
+  .progress-bar .fill{height:100%; background:linear-gradient(90deg,var(--accent),var(--gold)); border-radius:3px; transition:width .5s ease}
+
+  .done-page{padding:64px 32px 32px; text-align:center; display:flex; flex-direction:column; height:100%}
+  .done-page .celebration{font-size:52px; margin-bottom:16px}
+  .done-page h3{font-size:22px; font-weight:500; margin-bottom:6px}
+  .done-page .sub{font-size:13px; color:var(--ink-soft); margin-bottom:24px}
+  .done-stats{display:flex; background:var(--paper); border-radius:14px; padding:18px 8px; margin-bottom:28px}
+  .done-stats .ds{flex:1}
+  .done-stats .ds b{font-size:20px; display:block; font-weight:600}
+  .done-stats .ds span{font-size:11px; color:var(--ink-soft)}
+  .done-page .btn-column{margin-top:auto; display:flex; flex-direction:column; gap:10px}
+
+  .toast{
+    position:absolute; bottom:100px; left:50%; transform:translateX(-50%);
+    background:var(--ink); color:var(--bg); padding:10px 20px; border-radius:20px; font-size:13px;
+    z-index:60; animation:popIn .2s ease; white-space:nowrap;
+  }
+
+  .drawer-app{
+    position:absolute; inset:0; background:var(--sheet-bg); z-index:35; border-radius:22px 22px 0 0;
+    top:16%; display:flex; flex-direction:column; animation:slideUp .25s ease;
+  }
+
+  @keyframes slideUp{from{transform:translateY(60px); opacity:.5}to{transform:translateY(0); opacity:1}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+  @keyframes popIn{from{transform:translateX(-50%) scale(.9); opacity:0}to{transform:translateX(-50%) scale(1); opacity:1}}
+  @keyframes blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+
+  .footer-note{max-width:1160px; margin:0 auto 60px; padding:0 24px; font-size:12px; color:var(--ink-soft); line-height:2}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <h1 class="serif">AI 写作器 · 手机版</h1>
+  <span>MOBILE PROTOTYPE · V1.0 · 2026-10-18</span>
+</div>
+
+<div class="intro">
+  <h2 class="serif">手机版可交互原型</h2>
+  <p>覆盖三大场景：<b>一键仿写</b>（完整流程触屏适配）、<b>基础编辑</b>（所见即所得单模式 + 选中文字 AI 操作）、<b>项目查看</b>（项目列表 / 文档树 / 只读浏览）。点击左侧清单跳转任意界面，或从「M1 首页」开始，在手机上直接点按走完整条流程。</p>
+</div>
+
+<div class="stage">
+  <nav class="rail" id="rail"></nav>
+  <div class="phone-wrap">
+    <div class="phone">
+      <div class="notch"></div>
+      <div class="screen" id="screen"></div>
+    </div>
+  </div>
+  <aside class="notes" id="notes"></aside>
+</div>
+
+<div class="footer-note">
+  AI 写作器 · 手机版设计原型 —— 与设计文档《AI写作器-手机版设计文档》配套使用。色板与字体延续桌面版 V2 设计体系：暖赭石 #B85C38 / 暖米 #F5F0E8 / 深褐 #3D3229。
+</div>
+<script>
+/* ================= 状态 ================= */
+const S = {
+  screen: 'home',
+  parseStep: 0,          // 仿写解析步骤 0-3
+  skeletonTab: 'world',  // 骨架编辑 tab
+  locks: { world1:false, world2:false, world3:false },
+  overlay: null,         // 'example' | 'ai' | 'mode' | 'drawer'
+  exampleTab: 'lib',
+  selectedFile: 0,
+  aiApplied: false,
+  toast: null,
+  generating: false,
+  progress: 0,
+};
+
+const $screen = document.getElementById('screen');
+const $notes = document.getElementById('notes');
+const $rail = document.getElementById('rail');
+
+function go(id, patch){
+  Object.assign(S, patch || {});
+  S.screen = id;
+  render();
+}
+
+function statusbar(){
+  return `<div class="statusbar"><span>9:41</span><span class="icons">5G &nbsp;▰▰▰</span></div>`;
+}
+function showToast(msg){
+  S.toast = msg; render();
+  setTimeout(()=>{ S.toast = null; render(); }, 1600);
+}
+
+/* ================= 界面注册表 ================= */
+const SCREENS = [
+  { id:'home',    no:'M1', name:'首页 · 项目列表' },
+  { id:'docs',    no:'M2', name:'项目空间 · 文档列表' },
+  { id:'editor',  no:'M3', name:'编辑器 · 基础编辑' },
+  { id:'editorSel', no:'M4', name:'选中文字 · AI 工具条' },
+  { id:'aiSheet', no:'M5', name:'AI 操作 · 半屏 Sheet' },
+  { id:'example', no:'M6', name:'仿写 · 例文选择' },
+  { id:'parse',   no:'M7', name:'仿写 · AI 分步解析' },
+  { id:'skeleton',no:'M8', name:'仿写 · 骨架编辑' },
+  { id:'generate',no:'M9', name:'仿写 · 生成与完成' },
+];
+
+const NOTES = {
+  home: { tag:'项目查看', title:'首页 · 项目列表', html:`
+    <p>手机端首页聚焦"打开最近的写作"，项目卡片展示文档数、字数与最近编辑时间，仿写项目带角标。</p>
+    <ul><li>顶部：新建项目 / 导入 zip（OPFS 存储，与桌面端通过导出导入交换）</li>
+    <li>长按卡片：重命名 / 导出 zip / 删除</li>
+    <li>底部常驻「一键仿写」主按钮，与桌面版首页入口对齐</li></ul>
+    <div class="tip"><b>试一试：</b>点项目卡片进入文档列表；点底部「✒ 一键仿写」进入仿写流程。</div>`},
+  docs: { tag:'项目查看', title:'项目空间 · 文档列表', html:`
+    <p>项目内的主导航页。文档按 大纲 / 正文 / 笔记 / 资料库 分组，对应项目文件夹结构。</p>
+    <ul><li>点击文档进入编辑器；左滑可重命名 / 删除</li>
+    <li>大纲与人物库在手机端为<b>只读浏览</b>，编辑回桌面端</li>
+    <li>顶部显示项目统计，右上「⇪」可随时导出备份</li></ul>
+    <div class="tip"><b>试一试：</b>点击「第三章 · 码头对峙」进入编辑器。</div>`},
+  editor: { tag:'基础编辑', title:'编辑器 · 基础编辑', html:`
+    <p>仅保留<b>所见即所得</b>单模式（砍掉源码模式）。编辑即保存，防抖自动写入 OPFS。</p>
+    <ul><li>顶部：返回 / 文档名（点击切换文档）/ 字数 / 「☰」应用抽屉</li>
+    <li>底部格式条常驻键盘上方：加粗、标题、引用、列表等七个高频操作</li>
+    <li>桌面版侧边栏应用收进「☰」底部抽屉：文档 / 大纲 / 人物 / AI 聊天</li></ul>
+    <div class="tip"><b>试一试：</b>点击正文第三段，模拟长按选中唤起 AI 工具条；或点右上「☰」看应用抽屉。</div>`},
+  editorSel: { tag:'基础编辑 × AI', title:'选中文字 · 浮动工具条', html:`
+    <p>桌面版的"右键唤起 AI"在手机端改为<b>长按选中 → 浮动工具条</b>。</p>
+    <ul><li>预设动作与桌面版一致：仿写 / 续写 / 润色 / 扩写 / 缩写 / 更多</li>
+    <li>工具条跟随选区定位，避免遮挡选中文字</li></ul>
+    <div class="tip"><b>试一试：</b>点击工具条上的「✦ 仿写」。</div>`},
+  aiSheet: { tag:'基础编辑 × AI', title:'AI 操作 · 半屏 Sheet', html:`
+    <p>AI 对话框以<b>半屏 Sheet</b> 从底部升起：上方是选中文本摘要，中部流式输出，底部可追问。</p>
+    <ul><li>结果落回三选一，与桌面版一致：<b>替换原文 / 插入之后 / 仅复制</b></li>
+    <li>Sheet 可上拉全屏（长结果），下滑关闭（未落回时二次确认）</li>
+    <li>支持停止生成、重新生成</li></ul>
+    <div class="tip"><b>试一试：</b>点击「替换原文」，看结果落回编辑器。</div>`},
+  example: { tag:'一键仿写', title:'仿写 · 例文选择', html:`
+    <p>桌面版的居中弹窗改为<b>底部弹层</b>，拇指可达。两个选项卡：从资料库选择 / 粘贴例文。</p>
+    <ul><li>选择后自动创建临时项目「仿写-例文标题」，例文存入项目资料库</li>
+    <li>流程与桌面版 PRD V2 完全一致，仅做布局适配</li></ul>
+    <div class="tip"><b>试一试：</b>选一篇例文，点「开始解析」。</div>`},
+  parse: { tag:'一键仿写', title:'仿写 · AI 分步解析', html:`
+    <p>桌面版"左对话 + 右结果"双栏 → 手机端<b>单栏堆叠</b>：顶部步骤条、中部结果卡片、底部 AI 对话条。</p>
+    <ul><li>四步严格分步确认：世界观 → 人物 → 文风 → 大纲</li>
+    <li>AI 对话条点击展开半屏历史，可随时提出修改意见</li>
+    <li>每步可回退，进度自动保存</li></ul>
+    <div class="tip"><b>试一试：</b>点「确认，下一步」走完四步，进入骨架编辑。</div>`},
+  skeleton: { tag:'一键仿写', title:'仿写 · 骨架编辑', html:`
+    <p>桌面版"左导航 + 右内容" → 手机端<b>顶部 Tab</b> 切换四个维度。锁定机制完整保留。</p>
+    <ul><li>🔒 锁定 = AI 与手动均不可改，字段置灰 disabled，触控热区放大到 44pt</li>
+    <li>「✨ AI 优化」未手动改动时灰色不可用，改动后激活</li>
+    <li>批量 AI 修改弹窗改为全屏对话框</li></ul>
+    <div class="tip"><b>试一试：</b>点 🔒 锁定条目（注意底部锁定计数变化），再切到「大纲」Tab，然后点「生成文章」。</div>`},
+  generate: { tag:'一键仿写', title:'仿写 · 生成与完成', html:`
+    <p>模式选择改为底部弹层纵向两卡片；生成中支持切后台；完成态为全屏页（非弹窗）。</p>
+    <ul><li>逐段生成在手机端简化为单栏：大纲进度 + 当前段编辑 + 底部 AI 面板</li>
+    <li>断网自动保存已生成内容，恢复时提示继续</li>
+    <li>完成后章节自动存入 chapters/，项目转为正常项目</li></ul>
+    <div class="tip"><b>试一试：</b>选择「一次性生成」，观看生成过程直至完成页。</div>`},
+};
+
+/* ================= 渲染 ================= */
+function render(){
+  const fn = VIEWS[S.screen];
+  $screen.innerHTML = statusbar() + fn();
+  bindCommon();
+  renderRail(); renderNotes();
+}
+
+function bindCommon(){
+  document.querySelectorAll('[data-go]').forEach(el=>{
+    el.addEventListener('click', e=>{ e.stopPropagation(); go(el.dataset.go); });
+  });
+  document.querySelectorAll('[data-action]').forEach(el=>{
+    el.addEventListener('click', e=>{ e.stopPropagation(); ACTIONS[el.dataset.action] && ACTIONS[el.dataset.action](el); });
+  });
+}
+
+function renderRail(){
+  $rail.innerHTML = '<div class="rail-title">界面清单</div>' + SCREENS.map(s=>
+    `<button class="${S.screen===s.id?'active':''}" data-rail="${s.id}"><span class="no">${s.no}</span>${s.name}</button>`
+  ).join('');
+  $rail.querySelectorAll('[data-rail]').forEach(b=>b.addEventListener('click', ()=>go(b.dataset.rail)));
+}
+function renderNotes(){
+  const n = NOTES[S.screen];
+  $notes.innerHTML = `<div class="note-card"><div class="tag">${n.tag}</div><h3 class="serif">${n.title}</h3>${n.html}</div>`;
+}
+</script>
+<script>
+/* ================= 各界面视图 ================= */
+const VIEWS = {};
+
+/* ---------- M1 首页 ---------- */
+VIEWS.home = () => `
+  <div class="appbar">
+    <div class="title"><div class="t1 serif" style="font-size:20px">AI 写作器</div><div class="t2">项目存于本机浏览器 · OPFS</div></div>
+    <div class="icon-btn" data-action="toast" data-msg="导入项目 zip（演示）">⇪</div>
+    <div class="icon-btn" data-action="toast" data-msg="新建项目（演示）">＋</div>
+  </div>
+  <div class="app-body">
+    <div class="group-label"><span>最近项目</span><span>3 个项目</span></div>
+    <div class="project-card" data-go="docs">
+      <div class="pc-head"><h4>星海纪元</h4><span class="badge b2">正常项目</span></div>
+      <div class="meta"><span>12 篇文档</span><span>4.6 万字</span><span>2 小时前</span></div>
+      <div class="excerpt">雨点砸在集装箱顶棚上，像无数根手指在急促地敲门。林霁把怀里还温着的饭盒又裹紧了一层……</div>
+    </div>
+    <div class="project-card" data-go="docs">
+      <div class="pc-head"><h4>仿写-夜航船</h4><span class="badge">仿写项目</span></div>
+      <div class="meta"><span>8 篇文档</span><span>1.8 万字</span><span>昨天</span></div>
+      <div class="excerpt">骨架已确认 · 世界观 5 条目 · 人物 4 位 · 大纲 4 章 12 场景，已生成至第二章。</div>
+    </div>
+    <div class="project-card" data-go="docs">
+      <div class="pc-head"><h4>产品随笔集</h4><span class="badge b2">正常项目</span></div>
+      <div class="meta"><span>23 篇文档</span><span>7.2 万字</span><span>3 天前</span></div>
+      <div class="excerpt">关于写作工具的几点思考：编辑器应该消失，只留下文字和下一个句子……</div>
+    </div>
+    <div style="height:96px"></div>
+  </div>
+  <div style="flex-shrink:0;padding:12px 16px 22px;background:linear-gradient(transparent,var(--bg) 30%)">
+    <button class="btn-main" data-go="example">✒&nbsp; 一键仿写</button>
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}
+`;
+
+/* ---------- M2 文档列表 ---------- */
+VIEWS.docs = () => `
+  <div class="appbar">
+    <div class="back" data-go="home">‹</div>
+    <div class="title"><div class="t1 serif">星海纪元</div><div class="t2">12 篇文档 · 46,213 字</div></div>
+    <div class="icon-btn" data-action="toast" data-msg="已导出备份 zip（演示）">⇪</div>
+  </div>
+  <div class="app-body">
+    <div class="group-label"><span>剧情大纲</span></div>
+    <div class="doc-item" data-action="toast" data-msg="大纲只读浏览（演示）">
+      <div class="doc-ic">🌲</div><div class="di-body"><div class="di-name">outline.md</div><div class="di-meta">4 章 · 12 场景 · 只读</div></div><span class="chev">›</span>
+    </div>
+    <div class="doc-item" data-action="toast" data-msg="人物库只读浏览（演示）">
+      <div class="doc-ic">👥</div><div class="di-body"><div class="di-name">人物库 · 4 位</div><div class="di-meta">林霁 / 沈聿 / 老鬼 / 阿藻 · 只读</div></div><span class="chev">›</span>
+    </div>
+    <div class="group-label"><span>正文 · chapters/</span></div>
+    <div class="doc-item" data-go="editor">
+      <div class="doc-ic">📄</div><div class="di-body"><div class="di-name">第一章 · 雨夜追踪</div><div class="di-meta">3,842 字 · 昨天 22:14</div></div><span class="chev">›</span>
+    </div>
+    <div class="doc-item" data-go="editor">
+      <div class="doc-ic">📄</div><div class="di-body"><div class="di-name">第二章 · 信标觉醒</div><div class="di-meta">4,107 字 · 今天 09:32</div></div><span class="chev">›</span>
+    </div>
+    <div class="doc-item" data-go="editor">
+      <div class="doc-ic">📝</div><div class="di-body"><div class="di-name">第三章 · 码头对峙 <span style="color:var(--accent);font-size:11px">· 编辑中</span></div><div class="di-meta">1,256 字 · 2 小时前</div></div><span class="chev">›</span>
+    </div>
+    <div class="group-label"><span>笔记 · notes/</span></div>
+    <div class="doc-item" data-go="editor">
+      <div class="doc-ic">🗒</div><div class="di-body"><div class="di-name">文风样例.md</div><div class="di-meta">由 AI 仿写生成 · 1,020 字</div></div><span class="chev">›</span>
+    </div>
+    <div class="group-label"><span>资料库 · library/</span></div>
+    <div class="doc-item" data-action="toast" data-msg="资料库只读预览（演示）">
+      <div class="doc-ic">📚</div><div class="di-body"><div class="di-name">夜航船（例文）</div><div class="di-meta">12,400 字 · 标签：冷峻 / 科幻</div></div><span class="chev">›</span>
+    </div>
+    <div style="height:24px"></div>
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}
+`;
+
+/* ---------- 编辑器正文（共用） ---------- */
+function editorBody(sel){
+  return `
+  <div class="app-body" id="editorBody">
+    <div class="editor-content">
+      <h2 class="serif">第三章 · 码头对峙</h2>
+      <p class="selectable" data-action="toast" data-msg="轻点定位光标，长按选中文字">雨是后半夜开始下的。林霁贴着集装箱的阴影往前走，怀里的饭盒隔着两层油布，还是透出一点温热。船坞区的探照灯每隔四十秒扫过一次，他数过。</p>
+      <p class="selectable" data-action="toast" data-msg="轻点定位光标，长按选中文字">监察官就站在七号泊位。深灰色的制服在雨里几乎看不出来，只有肩章上的银线偶尔反一下光，像水面上的碎月。</p>
+      <p class="${sel?'selected':'selectable'}" ${sel?'':'data-go="editorSel"'}>${sel?'':'【点我模拟长按选中】 '}他本该绕开的。预案里写得很清楚：探照灯第三次扫过之后，从西侧缆桩翻下去，贴着水面走。但饭盒还温着，阿藻还饿着，而他已经三天没有睡过一个整觉了。</p>
+      ${S.aiApplied?`<p class="ai-inserted">他在原地站了一秒。雨声把所有犹豫都砸碎了，又把剩下的一点决心浇得发亮。林霁把饭盒换到左手，右手摸出那枚磨得发亮的旧硬币——正面走西侧，反面走灯下。硬币落进掌心的瞬间，他已经知道自己在等哪一面。</p>`:''}
+      <p class="selectable" data-action="toast" data-msg="轻点定位光标，长按选中文字">"站住。"声音不高，但雨声让开了。林霁停下脚步，慢慢转过身。探照灯恰好扫过来，把他和监察官同时钉在了一片白晃晃的光里。</p>
+      <p style="color:var(--ink-soft);font-size:13px;text-align:center;margin-top:28px">—— 已自动保存 · 22:47 ——</p>
+    </div>
+    ${sel?`
+    <div class="float-toolbar" style="top:278px">
+      <button class="ft-ai" data-go="aiSheet">✦ 仿写</button>
+      <button data-go="aiSheet">续写</button>
+      <button data-go="aiSheet">润色</button>
+      <button data-go="aiSheet">扩写</button>
+      <button data-go="aiSheet">⋯</button>
+    </div>`:''}
+  </div>
+  <div class="format-bar">
+    <button data-action="toast" data-msg="加粗（演示）"><b>B</b></button>
+    <button data-action="toast" data-msg="斜体（演示）"><i>I</i></button>
+    <span class="sep"></span>
+    <button data-action="toast" data-msg="标题层级（演示）">H</button>
+    <button data-action="toast" data-msg="引用（演示）">❝</button>
+    <button data-action="toast" data-msg="列表（演示）">☰</button>
+    <button data-action="toast" data-msg="分割线（演示）">—</button>
+    <span class="sep"></span>
+    <button style="color:var(--accent)" data-go="editorSel">✦ AI</button>
+  </div>`;
+}
+
+/* ---------- M3 编辑器 ---------- */
+VIEWS.editor = () => `
+  <div class="appbar">
+    <div class="back" data-go="docs">‹</div>
+    <div class="title" data-action="toast" data-msg="点击可切换文档（拉起文档抽屉）" style="cursor:pointer"><div class="t1">第三章 · 码头对峙</div><div class="t2">chapters/ · ${S.aiApplied?'1,432':'1,256'} 字</div></div>
+    <div class="icon-btn" data-action="drawer">☰</div>
+  </div>
+  ${editorBody(false)}
+  ${S.overlay==='drawer'?`
+  <div class="sheet-mask" data-action="closeOverlay"></div>
+  <div class="drawer-app">
+    <div class="grab"></div>
+    <div class="top-tabs" style="background:transparent;border-bottom:1px solid var(--line)">
+      <button class="on">文档</button><button data-action="toast" data-msg="大纲只读（演示）">大纲</button>
+      <button data-action="toast" data-msg="人物库只读（演示）">人物</button><button data-action="toast" data-msg="AI 聊天（演示）">AI 聊天</button>
+    </div>
+    <div class="sheet-body" style="padding:8px 0">
+      <div class="doc-item" data-action="closeOverlay"><div class="doc-ic">📄</div><div class="di-body"><div class="di-name">第一章 · 雨夜追踪</div><div class="di-meta">3,842 字</div></div></div>
+      <div class="doc-item" data-action="closeOverlay"><div class="doc-ic">📄</div><div class="di-body"><div class="di-name">第二章 · 信标觉醒</div><div class="di-meta">4,107 字</div></div></div>
+      <div class="doc-item" style="background:var(--bg)"><div class="doc-ic">📝</div><div class="di-body"><div class="di-name">第三章 · 码头对峙</div><div class="di-meta" style="color:var(--accent)">当前文档</div></div></div>
+      <div class="doc-item" data-action="closeOverlay"><div class="doc-ic">🗒</div><div class="di-body"><div class="di-name">文风样例.md</div><div class="di-meta">notes/</div></div></div>
+    </div>
+  </div>`:''}
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}
+`;
+
+/* ---------- M4 选中态 ---------- */
+VIEWS.editorSel = () => `
+  <div class="appbar">
+    <div class="back" data-go="docs">‹</div>
+    <div class="title"><div class="t1">第三章 · 码头对峙</div><div class="t2">已选中 86 字</div></div>
+    <div class="icon-btn" data-action="drawer">☰</div>
+  </div>
+  ${editorBody(true)}
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}
+`;
+
+/* ---------- M5 AI Sheet ---------- */
+VIEWS.aiSheet = () => `
+  <div class="appbar">
+    <div class="back" data-go="docs">‹</div>
+    <div class="title"><div class="t1">第三章 · 码头对峙</div><div class="t2">已选中 86 字</div></div>
+    <div class="icon-btn">☰</div>
+  </div>
+  ${editorBody(true)}
+  <div class="sheet-mask"></div>
+  <div class="sheet">
+    <div class="grab"></div>
+    <div class="sheet-head"><h4>✦ 仿写</h4><p>以选中段落的文风，仿写一段新内容</p></div>
+    <div class="sheet-body">
+      <div class="ai-quote">原文 · 他本该绕开的。预案里写得很清楚：探照灯第三次扫过之后，从西侧缆桩翻下去，贴着水面走。但饭盒还温着，阿藻还饿着……</div>
+      <div class="ai-result">他在原地站了一秒。雨声把所有犹豫都砸碎了，又把剩下的一点决心浇得发亮。林霁把饭盒换到左手，右手摸出那枚磨得发亮的旧硬币——正面走西侧，反面走灯下。硬币落进掌心的瞬间，他已经知道自己在等哪一面。</div>
+      <div class="chat-bar" style="border:1px solid var(--line);border-radius:14px;padding:8px 10px;background:var(--paper)">
+        <input placeholder="追问调整，如：再克制一点，去掉比喻" readonly>
+        <button class="send" data-action="toast" data-msg="重新生成（演示）">↻</button>
+      </div>
+    </div>
+    <div class="sheet-foot">
+      <div class="apply-row" style="flex:1">
+        <button class="btn-sub primary" data-action="applyReplace">替换原文</button>
+        <button class="btn-sub" data-action="toast" data-msg="已插入到原文之后（演示）">插入之后</button>
+        <button class="btn-sub" data-action="toast" data-msg="已复制（演示）">仅复制</button>
+      </div>
+    </div>
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}
+`;
+</script>
+<script>
+/* ---------- M6 例文选择 ---------- */
+VIEWS.example = () => `
+  <div class="appbar">
+    <div class="back" data-go="home">‹</div>
+    <div class="title"><div class="t1 serif">一键仿写</div><div class="t2">选择例文，AI 自动拆解骨架</div></div>
+  </div>
+  <div class="app-body" style="background:var(--page)"></div>
+  <div class="sheet" style="max-height:72%">
+    <div class="grab"></div>
+    <div class="sheet-head"><h4>选择例文</h4><p>选择后自动创建项目「仿写-例文标题」</p></div>
+    <div class="sheet-body">
+      <div class="seg-tabs">
+        <button class="${S.exampleTab==='lib'?'on':''}" data-action="exTab" data-tab="lib">从资料库选择</button>
+        <button class="${S.exampleTab==='paste'?'on':''}" data-action="exTab" data-tab="paste">粘贴例文</button>
+      </div>
+      ${S.exampleTab==='lib'?`
+        <div class="file-row ${S.selectedFile===0?'on':''}" data-action="selFile" data-i="0">
+          <span>📚</span><div class="fr-name">夜航船</div><span class="fr-meta">12,400 字</span>
+        </div>
+        <div class="file-row ${S.selectedFile===1?'on':''}" data-action="selFile" data-i="1">
+          <span>📚</span><div class="fr-name">潮汐站</div><span class="fr-meta">8,720 字</span>
+        </div>
+        <div class="file-row ${S.selectedFile===2?'on':''}" data-action="selFile" data-i="2">
+          <span>📚</span><div class="fr-name">灰烬公路</div><span class="fr-meta">15,930 字</span>
+        </div>`:`
+        <textarea class="paste-box" placeholder="在此粘贴例文全文，建议 1000 字以上以获得更好的解析效果"></textarea>`}
+    </div>
+    <div class="sheet-foot">
+      <button class="btn-sub" data-go="home">取消</button>
+      <button class="btn-main" data-go="parse">开始解析 →</button>
+    </div>
+  </div>
+`;
+
+/* ---------- M7 AI 分步解析 ---------- */
+const PARSE_STEPS = [
+  { name:'世界观', cards:[
+    ['时代背景','近未来沿海工业城市，海平面上升吞没了旧港区，幸存者退守高架新城。'],
+    ['科技体系','义肢改造普及但受严格管制，"信标"植入物可接入城市监控网络。'],
+    ['社会规则','配给制：食物、燃料按工分分配，黑市以旧货币和情报为硬通货。'],
+    ['地理设定','船坞区为法外之地，探照灯与巡逻艇构成松散的"灯下秩序"。'],
+  ]},
+  { name:'人物', chars:[
+    ['林','林霁','码头搬运工 / 义肢改造者',['隐忍','重诺','夜盲'],['妹妹阿藻','黑市中间人老鬼']],
+    ['沈','沈聿','监察官',['冷峻','矛盾','怀旧'],['曾受林父恩惠','追捕者与守护者的双重身份']],
+    ['鬼','老鬼','黑市中间人',['油滑','消息灵通'],['掌握船坞区地下通道','唯利是图但有底线']],
+  ]},
+  { name:'文风', style:'冷峻、短句为主，环境描写克制而锋利；比喻多取自海洋与机械；对话少，动作叙事多。样例已写入 notes/文风样例.md。' },
+  { name:'大纲', outline:[
+    ['第一章 · 雨夜追踪',['林霁藏饭进入船坞区','与监察官迎头相撞','躲进集装箱阴影']],
+    ['第二章 · 信标觉醒',['义肢接收到异常信号','老鬼开价：一条情报换一条通道','沈聿的档案被翻出']],
+    ['第三章 · 码头对峙',['探照灯下的对峙','饭盒落地，秘密暴露','沈聿放走林霁']],
+  ]},
+];
+
+VIEWS.parse = () => {
+  const i = S.parseStep, st = PARSE_STEPS[i];
+  let body = '';
+  if(st.cards){
+    body = st.cards.map(c=>`<div class="entry-card"><div class="ec-name">${c[0]}</div><div class="ec-desc">${c[1]}</div></div>`).join('');
+  } else if(st.chars){
+    body = st.chars.map(c=>`
+      <div class="char-card">
+        <div class="cc-head"><div class="avatar serif">${c[0]}</div>
+        <div><div class="cc-name">${c[1]}</div><div class="cc-role">${c[2]}</div></div></div>
+        <div class="tags">${c[3].map(t=>`<span class="tag-chip">${t}</span>`).join('')}</div>
+        <div class="ec-desc" style="margin-top:8px">${c[4].join(' · ')}</div>
+      </div>`).join('');
+  } else if(st.style){
+    body = `<div class="entry-card"><div class="ec-name">文风样例 <span style="font-size:10px;color:var(--accent)">由 AI 仿写生成</span></div><div class="ec-desc">${st.style}</div></div>`;
+  } else if(st.outline){
+    body = st.outline.map(o=>`
+      <div class="outline-node"><div class="on-head">${o[0]}<span style="color:var(--ink-soft);font-weight:400">⌄</span></div>
+      ${o[1].map(s=>`<div class="scene">${s}</div>`).join('')}</div>`).join('');
+  }
+  return `
+  <div class="appbar">
+    <div class="back" data-go="home">‹</div>
+    <div class="title"><div class="t1 serif">仿写-夜航船</div><div class="t2">AI 分步解析 · 第 ${i+1} / 4 步</div></div>
+  </div>
+  <div class="step-bar">
+    ${PARSE_STEPS.map((p,j)=>`<div class="st ${j<i?'done':j===i?'now':''}">${p.name}</div>`).join('')}
+  </div>
+  <div class="app-body" style="padding:16px 16px 8px">
+    <div style="font-size:12px;color:var(--ink-soft);margin-bottom:12px;padding:0 4px">🤖 我已从例文中提取以下${st.name}${st.cards?'设定':st.chars?'信息':st.style?'特点':'结构'}，请确认或提出修改意见。</div>
+    ${body}
+    <div style="height:8px"></div>
+  </div>
+  <div class="chat-bar">
+    <input placeholder="提出修改意见，如：增加经济体系设定" readonly>
+    <button class="send" data-action="toast" data-msg="AI 重新解析中（演示）">➤</button>
+  </div>
+  <div class="parse-foot">
+    <button class="btn-sub" ${i===0?'disabled style="flex:1;opacity:.4"':'data-action="prevStep"'}>← 上一步</button>
+    ${i<3
+      ? `<button class="btn-main" data-action="nextStep">确认，下一步</button>`
+      : `<button class="btn-main" data-go="skeleton">确认骨架，进入生成模式</button>`}
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
+};
+
+/* ---------- M8 骨架编辑 ---------- */
+VIEWS.skeleton = () => {
+  const t = S.skeletonTab;
+  const lockCount = Object.values(S.locks).filter(Boolean).length;
+  let body = '';
+  if(t==='world'){
+    body = ['时代背景','科技体系','社会规则'].map((name,idx)=>{
+      const key='world'+(idx+1), locked=S.locks[key];
+      const desc = idx===0?'近未来沿海工业城市，海平面上升吞没了旧港区。':idx===1?'义肢改造普及但受管制，"信标"植入物可接入监控网络。':'配给制：食物燃料按工分分配，黑市以情报为硬通货。';
+      return `<div class="entry-card ${locked?'locked':''}">
+        <div class="ec-name"><span>${name}${locked?' <span style="font-size:10px">🔒 已锁定</span>':''}</span>
+        <button class="lock-btn" data-action="lock" data-key="${key}">${locked?'🔒':'🔓'}</button></div>
+        <div class="ec-desc">${desc}</div>
+        <div style="margin-top:10px;display:flex;gap:8px">
+          <button class="ai-btn" disabled>✨ AI 优化（未改动）</button>
+        </div>
+      </div>`;
+    }).join('') + `<button class="btn-sub" style="width:100%" data-action="toast" data-msg="AI 批量修改（全屏对话框，演示）">✨ AI 修改全部</button>`;
+  } else if(t==='char'){
+    body = PARSE_STEPS[1].chars.map(c=>`
+      <div class="char-card">
+        <div class="cc-head"><div class="avatar serif">${c[0]}</div>
+        <div style="flex:1"><div class="cc-name">${c[1]}</div><div class="cc-role">${c[2]}</div></div>
+        <button class="lock-btn" data-action="toast" data-msg="锁定/解锁（演示）">🔓</button></div>
+        <div class="tags">${c[3].map(x=>`<span class="tag-chip">${x}</span>`).join('')}</div>
+      </div>`).join('');
+  } else if(t==='style'){
+    body = `<div class="entry-card"><div class="ec-name">文风样例</div>
+      <div class="ec-desc">冷峻、短句为主，环境描写克制而锋利；比喻多取自海洋与机械；对话少，动作叙事多。</div>
+      <div style="margin-top:10px"><button class="ai-btn" data-action="toast" data-msg="AI 重新提取文风（演示）">✨ AI 优化</button></div></div>`;
+  } else {
+    body = PARSE_STEPS[3].outline.map(o=>`
+      <div class="outline-node"><div class="on-head">${o[0]}
+        <span style="display:flex;gap:6px"><button class="ai-btn" data-action="toast" data-msg="优化场景（演示）">✨</button>
+        <button class="lock-btn" data-action="toast" data-msg="锁定/解锁（演示）">🔓</button></span></div>
+      ${o[1].map(s=>`<div class="scene">${s}</div>`).join('')}</div>`).join('')
+      + `<button class="btn-sub" style="width:100%" data-action="toast" data-msg="AI 重新生成大纲（全屏对话框，演示）">✨ AI 重新生成大纲</button>`;
+  }
+  return `
+  <div class="appbar">
+    <div class="back" data-action="backToParse">‹</div>
+    <div class="title"><div class="t1 serif">骨架编辑</div><div class="t2">所有字段默认可编辑 · 锁定后 AI 不可改</div></div>
+  </div>
+  <div class="top-tabs">
+    <button class="${t==='world'?'on':''}" data-action="skTab" data-tab="world">世界观</button>
+    <button class="${t==='char'?'on':''}" data-action="skTab" data-tab="char">人物库</button>
+    <button class="${t==='style'?'on':''}" data-action="skTab" data-tab="style">文风样例</button>
+    <button class="${t==='outline'?'on':''}" data-action="skTab" data-tab="outline">大纲</button>
+  </div>
+  <div class="app-body" style="padding:16px">${body}<div style="height:8px"></div></div>
+  <div class="parse-foot" style="align-items:center">
+    <span style="flex:1;font-size:12px;color:var(--ink-soft)">🔒 ${lockCount}/3 条已锁定</span>
+    <button class="btn-main" style="flex:2;padding:12px" data-go="generate">生成文章 →</button>
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
+};
+
+/* ---------- M9 生成与完成 ---------- */
+VIEWS.generate = () => {
+  if(S.generating){
+    return `
+    <div class="appbar"><div class="title"><div class="t1 serif">正在生成</div><div class="t2">可切后台，完成后通知</div></div></div>
+    <div class="progress-wrap">
+      <div class="progress-ring">✒</div>
+      <div style="font-size:15px;font-weight:600">正在生成第 ${Math.min(3,Math.floor(S.progress/34)+1)} 章…</div>
+      <div class="progress-bar"><div class="fill" style="width:${S.progress}%"></div></div>
+      <div style="font-size:12px;color:var(--ink-soft)">${S.progress}% · 严格遵循已锁定的 ${Object.values(S.locks).filter(Boolean).length} 条设定</div>
+    </div>`;
+  }
+  if(S.done){
+    return `
+    <div class="app-body"><div class="done-page">
+      <div class="celebration">🎉</div>
+      <h3 class="serif">文章生成完成！</h3>
+      <div class="sub">仿写-夜航船 已全部生成，章节已存入 chapters/</div>
+      <div class="done-stats">
+        <div class="ds"><b>4</b><span>章节</span></div>
+        <div class="ds"><b>12</b><span>场景</span></div>
+        <div class="ds"><b>18k</b><span>字数</span></div>
+      </div>
+      <div class="btn-column">
+        <button class="btn-main" data-action="enterEditor">保存并进入编辑器</button>
+        <button class="btn-sub" data-action="toast" data-msg="逐段精修（演示）">继续逐段精修</button>
+        <button class="btn-sub" data-action="toast" data-msg="已导出 Markdown（演示）">导出为 Markdown</button>
+      </div>
+    </div></div>
+    ${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
+  }
+  return `
+  <div class="appbar">
+    <div class="back" data-go="skeleton">‹</div>
+    <div class="title"><div class="t1 serif">生成文章</div><div class="t2">选择生成模式</div></div>
+  </div>
+  <div class="app-body" style="background:var(--page)"></div>
+  <div class="sheet" style="max-height:64%">
+    <div class="grab"></div>
+    <div class="sheet-head"><h4>选择生成模式</h4><p>骨架已就绪：世界观 5 · 人物 4 · 大纲 4 章 12 场景</p></div>
+    <div class="sheet-body">
+      <div class="mode-card" data-action="startGen"><h5>⚡ 一次性生成</h5><p>AI 一次性写出完整文章，直接进入编辑器编辑。</p></div>
+      <div class="mode-card" data-action="toast" data-msg="逐段生成：按大纲逐段生成，每段可修改后再继续（演示）"><h5>🧩 逐段生成</h5><p>按大纲逐段生成，每段可修改后再生成下一段。</p></div>
+    </div>
+  </div>
+  ${S.toast?`<div class="toast">${S.toast}</div>`:''}`;
+};
+</script>
+<script>
+/* ================= 交互动作 ================= */
+const ACTIONS = {
+  toast(el){ showToast(el.dataset.msg || '演示'); },
+  closeOverlay(){ S.overlay = null; render(); },
+  drawer(){ S.overlay = 'drawer'; render(); },
+
+  applyReplace(){
+    S.aiApplied = true;
+    go('editor');
+    setTimeout(()=>showToast('已替换原文 · 自动保存'), 100);
+  },
+
+  exTab(el){ S.exampleTab = el.dataset.tab; render(); },
+  selFile(el){ S.selectedFile = +el.dataset.i; render(); },
+
+  nextStep(){ if(S.parseStep<3){ S.parseStep++; render(); document.querySelector('.app-body').scrollTop=0; } },
+  prevStep(){ if(S.parseStep>0){ S.parseStep--; render(); } },
+  backToParse(){ go('parse',{parseStep:3}); },
+
+  skTab(el){ S.skeletonTab = el.dataset.tab; render(); },
+  lock(el){
+    const k = el.dataset.key; S.locks[k] = !S.locks[k]; render();
+    showToast(S.locks[k] ? '已锁定：AI 与手动均不可改' : '已解锁，恢复编辑');
+  },
+
+  startGen(){
+    S.generating = true; S.progress = 0; render();
+    const timer = setInterval(()=>{
+      S.progress += Math.floor(Math.random()*14)+8;
+      if(S.progress >= 100){
+        S.progress = 100; clearInterval(timer);
+        render();
+        setTimeout(()=>{ S.generating = false; S.done = true; render(); }, 600);
+      } else render();
+    }, 450);
+  },
+  enterEditor(){
+    S.done = false; S.aiApplied = false;
+    go('editor');
+    setTimeout(()=>showToast('已保存至 chapters/ · 项目转为正常项目'), 100);
+  },
+};
+
+const h = location.hash.replace('#','');
+if(h && VIEWS[h]) S.screen = h;
+render();
+window.addEventListener('hashchange',()=>{ const x=location.hash.replace('#',''); if(x&&VIEWS[x]) go(x); });
+</script>
+</body>
+</html>
