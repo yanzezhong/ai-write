@@ -92,6 +92,7 @@ import type { DocEntry } from '../../types'
 const props = defineProps<{
   currentPath: string
   outlineText: string
+  initialTab?: string
 }>()
 const emit = defineEmits<{ close: []; 'switch-doc': [d: DocEntry] }>()
 
@@ -105,7 +106,9 @@ const tabs = [
   { id: 'chat', label: 'AI 聊天' },
 ] as const
 type TabId = (typeof tabs)[number]['id']
-const tab = ref<TabId>('docs')
+const tab = ref<TabId>(
+  props.initialTab && tabs.some((t) => t.id === props.initialTab) ? (props.initialTab as TabId) : 'docs',
+)
 
 const chat = ref<{ role: 'user' | 'assistant'; content: string }[]>([])
 const chatInput = ref('')

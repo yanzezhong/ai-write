@@ -104,15 +104,16 @@
         <button class="icon-btn" @click="closeEditor"><AppIcon name="back" :size="17" /></button>
         <strong class="edit-name">{{ editing.name }}</strong>
         <span class="sub-tip">{{ editWords }} 字 · 自动保存</span>
-        <button class="icon-btn menu" title="应用抽屉" aria-label="应用抽屉" @click="drawerOpen = true">
+        <button class="icon-btn menu" title="应用抽屉" aria-label="应用抽屉" @click="openDrawer('docs')">
           <AppIcon name="menu" :size="18" />
         </button>
       </header>
-      <MobileEditor :key="editing.path" :path="editing.path" :initial="text" @saved="editWords = $event" />
+      <MobileEditor :key="editing.path" :path="editing.path" :initial="text" @saved="editWords = $event" @open-ai="openDrawer('chat')" />
       <MobileAppDrawer
         v-if="drawerOpen"
         :current-path="editing.path"
         :outline-text="outlineText"
+        :initial-tab="drawerTab"
         @close="drawerOpen = false"
         @switch-doc="switchDoc"
       />
@@ -156,6 +157,12 @@ const text = ref('')
 const editWords = ref(0)
 const docMenu = ref<DocEntry | null>(null)
 const drawerOpen = ref(false)
+const drawerTab = ref('docs')
+
+function openDrawer(tab: string) {
+  drawerTab.value = tab
+  drawerOpen.value = true
+}
 
 const chapters = computed(() => project.docs.filter((d) => d.path.startsWith('chapters/')))
 const notes = computed(() => project.docs.filter((d) => d.path.startsWith('notes/')))

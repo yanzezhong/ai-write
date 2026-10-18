@@ -79,6 +79,8 @@
       <button class="fmt" @click="run(toggleBulletList)" title="无序列表">•≡</button>
       <button class="fmt" @click="run(toggleOrderedList)" title="有序列表">1≡</button>
       <button class="fmt" @click="insertHr" title="分割线">―</button>
+      <span class="fmt-spacer"></span>
+      <button class="fmt fmt-ai" title="AI 助手" @click="emit('open-ai')">✦ AI</button>
     </div>
   </div>
 </template>
@@ -103,7 +105,7 @@ const props = defineProps<{
   initial: string
 }>()
 
-const emit = defineEmits<{ saved: [length: number] }>()
+const emit = defineEmits<{ saved: [length: number]; 'open-ai': [] }>()
 
 const host = ref<HTMLDivElement | null>(null)
 let milk: Editor | null = null
@@ -472,6 +474,14 @@ function applyResult(mode: 'replace' | 'append' | 'copy'): void {
   padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
   border-top: 1px solid var(--line);
   background: var(--bg);
+}
+.fmt-spacer {
+  flex: 1;
+}
+.fmt-ai {
+  color: var(--purple);
+  font-size: 13px;
+  font-weight: 600;
 }
 .fmt {
   min-width: 44px;
