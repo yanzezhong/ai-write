@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div class="sheet-mask" @click.self="emit('close')">
-      <div class="sheet" role="dialog" aria-label="选择例文">
+      <div class="sheet" role="dialog" aria-label="选择例文" v-swipe-close="() => emit('close')">
         <div class="grabber"></div>
         <header class="sheet-head">
           <h3>选择例文</h3>
@@ -67,6 +67,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useLibraryStore } from '../../stores/library'
+import { vSwipeClose } from './swipeClose'
 
 const emit = defineEmits<{ close: [] }>()
 const router = useRouter()

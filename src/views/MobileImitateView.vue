@@ -125,7 +125,7 @@
       <!-- 对话历史半屏 -->
       <Teleport to="body">
         <div v-if="historyOpen" class="sheet-mask" @click.self="historyOpen = false">
-          <div class="history-sheet">
+          <div class="history-sheet" v-swipe-close="() => (historyOpen = false)">
             <div class="grabber"></div>
             <header class="hs-head">
               <strong>解析对话</strong>
@@ -178,7 +178,7 @@
     <!-- M9 生成模式底部弹层 -->
     <Teleport to="body">
       <div v-if="genSheet" class="sheet-mask" @click.self="genSheet = false">
-        <div class="gen-sheet">
+        <div class="gen-sheet" v-swipe-close="() => (genSheet = false)">
           <div class="grabber"></div>
           <header class="gs-head">
             <h3>选择生成模式</h3>
@@ -206,6 +206,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import MobileSkeletonStage from '../components/mobile/imitate/MobileSkeletonStage.vue'
 import MobileSegmentStage from '../components/mobile/imitate/MobileSegmentStage.vue'
+import { vSwipeClose } from '../components/mobile/swipeClose'
 import { renderMd } from '../services/md'
 import { ensureNotifyPermission, notifyDone } from '../services/notify'
 import { STEPS, STEP_INDEX, useImitateStore, type ImitateStep } from '../stores/imitate'

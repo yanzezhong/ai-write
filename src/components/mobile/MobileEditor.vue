@@ -15,7 +15,7 @@
 
       <!-- AI 操作半屏 Sheet（M5） -->
       <div v-if="sheet" class="mask" @click.self="tryCloseSheet">
-        <div class="sheet" :class="{ full: sheetFull }">
+        <div class="sheet" :class="{ full: sheetFull }" v-swipe-close="tryCloseSheet">
           <div class="sheet-head">
             <strong>{{ sheetTitle }}</strong>
             <span class="sheet-grow"></span>
@@ -95,6 +95,7 @@ import { toggleMark, setBlockType, wrapIn } from '@milkdown/prose/commands'
 import { wrapInList } from '@milkdown/prose/schema-list'
 import type { Command } from '@milkdown/prose/state'
 import AppIcon from '../AppIcon.vue'
+import { vSwipeClose } from './swipeClose'
 import { getPreset } from '../../ai/presets'
 import { getFS } from '../../core/fs'
 import { renderMd } from '../../services/md'

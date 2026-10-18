@@ -1,7 +1,7 @@
 <template>
   <Teleport to="body">
     <div class="mask" @click.self="emit('close')">
-      <div class="drawer" role="dialog" aria-label="应用抽屉">
+      <div class="drawer" role="dialog" aria-label="应用抽屉" v-swipe-close="() => emit('close')">
         <div class="grabber"></div>
         <nav class="tabs">
           <button v-for="t in tabs" :key="t.id" class="tab" :class="{ active: tab === t.id }" @click="switchTab(t.id)">
@@ -82,6 +82,7 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
 import AppIcon from '../AppIcon.vue'
+import { vSwipeClose } from './swipeClose'
 import { getFS } from '../../core/fs'
 import { formatWords } from '../../core/storage'
 import { renderMd } from '../../services/md'
