@@ -151,20 +151,51 @@ export interface ChatOptions {
   onDelta: (fullText: string, delta: string) => void
 }
 
+/**
+ * 开发模式下把已知供应商的 baseUrl 改写成 dev server 的同源代理（见 vite.config.ts proxy）。
+ * 手机浏览器直连第三方 API 可能被网络层拦截（iOS WebKit 报 "Load failed"），同源代理可绕开。
+ */
+export function resolveBaseUrl(baseUrl: string): string {
+  if (import.meta.env.DEV) {
+    if (baseUrl.startsWith('https://api.deepseek.com')) return baseUrl.replace('https://api.deepseek.com', '/__ds')
+    if (baseUrl.startsWith('https://api.openai.com')) return baseUrl.replace('https://api.openai.com', '/__oa')
+    if (baseUrl.startsWith('https://open.bigmodel.cn')) return baseUrl.replace('https://open.bigmodel.cn', '/__glm')
+  }
+  return baseUrl
+}
+
+/** 把 fetch 抛出的网络层原生错误（"Failed to fetch" / "Load failed"）包装成可读的中文错误 */
+async function postChat(provider: AIProviderConfig, body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
+  let res: Response
+  try {
+    res = await fetch(`${resolveBaseUrl(provider.baseUrl).replace(/\/$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${provider.apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal,
+    })
+  } catch (err) {
+    const detail = err instanceof Error ? err.message : String(err)
+    throw new Error(
+      `无法连接 API 服务器（${detail}）。如果用手机访问，请确认电脑上的 dev server 正在运行，或改用自定义供应商的同源代理地址。`,
+    )
+  }
+  return res
+}
+
 export async function streamChat(provider: AIProviderConfig, opts: ChatOptions): Promise<string> {
-  const res = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${provider.apiKey}`,
-    },
-    body: JSON.stringify({
+  const res = await postChat(
+    provider,
+    {
       model: provider.model,
       messages: opts.messages.map((m) => ({ role: m.role, content: m.content })),
       stream: true,
-    }),
-    signal: opts.signal,
-  })
+    },
+    opts.signal,
+  )
   if (!res.ok || !res.body) {
     const text = await res.text().catch(() => '')
     throw new Error(`请求失败（${res.status}）：${text.slice(0, 200)}`)
@@ -202,17 +233,10 @@ export async function streamChat(provider: AIProviderConfig, opts: ChatOptions):
 /** 测试连接：发一个最小请求，返回延迟 ms；失败抛错 */
 export async function testConnection(provider: AIProviderConfig): Promise<number> {
   const started = Date.now()
-  const res = await fetch(`${provider.baseUrl.replace(/\/$/, '')}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${provider.apiKey}`,
-    },
-    body: JSON.stringify({
-      model: provider.model,
-      messages: [{ role: 'user', content: 'hi' }],
-      max_tokens: 1,
-    }),
+  const res = await postChat(provider, {
+    model: provider.model,
+    messages: [{ role: 'user', content: 'hi' }],
+    max_tokens: 1,
   })
   if (!res.ok) {
     const text = await res.text().catch(() => '')

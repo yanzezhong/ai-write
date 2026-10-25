@@ -18,6 +18,13 @@ export default defineConfig({
       key: readFileSync(join(certDir, 'dev.pem')),
       cert: readFileSync(join(certDir, 'cert.pem')),
     },
+    proxy: {
+      // 手机端浏览器直连第三方 API 容易出现网络层错误（iOS WebKit 表现为红字 "Load failed"）。
+      // 开发服务器把这些已知供应商转成同源代理，手机只跟 dev server 通信，绕过跨域/证书/拦截问题。
+      '/__ds': { target: 'https://api.deepseek.com', changeOrigin: true, rewrite: (p) => p.replace(/^\/__ds/, '') },
+      '/__oa': { target: 'https://api.openai.com', changeOrigin: true, rewrite: (p) => p.replace(/^\/__oa/, '') },
+      '/__glm': { target: 'https://open.bigmodel.cn', changeOrigin: true, rewrite: (p) => p.replace(/^\/__glm/, '') },
+    },
   },
   build: {
     rollupOptions: {
