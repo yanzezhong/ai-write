@@ -138,4 +138,48 @@ const editorMode = computed({
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ---------- 移动端（<768px）：行纵向堆叠，控件全宽、触屏热区 ≥44px ---------- */
+@media (max-width: 767.98px) {
+  .section {
+    padding: 6px 16px;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .fake-select {
+    width: 100%;
+  }
+
+  .fake-option {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .switch {
+    align-self: flex-start;
+    width: 54px;
+    height: 32px;
+  }
+
+  .knob {
+    width: 26px;
+    height: 26px;
+  }
+
+  .switch.on .knob {
+    transform: translateX(22px);
+  }
+
+  /* 扩大点击热区至 44px 高（32px 轨道 + 上下各 6px 透明区） */
+  .switch::after {
+    content: '';
+    position: absolute;
+    inset: -6px;
+  }
+}
 </style>

@@ -151,4 +151,52 @@ function goBack() {
   background: var(--panel-2);
   padding: 32px;
 }
+
+/* ---------- 移动端（<768px）：侧栏变顶部横向标签，内容区单列纵向 ---------- */
+@media (max-width: 767.98px) {
+  .topbar .icon-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .body {
+    flex-direction: column;
+  }
+
+  .sidenav {
+    width: 100%;
+    flex-direction: row;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 10px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .nav-item {
+    flex: none;
+    min-height: 44px;
+    padding: 10px 14px;
+    white-space: nowrap;
+  }
+
+  .nav-item.active::before {
+    left: 10px;
+    right: 10px;
+    top: auto;
+    bottom: -6px;
+    width: auto;
+    height: 3px;
+    border-radius: 3px 3px 0 0;
+  }
+
+  .canvas {
+    flex: 1;
+    min-height: 0;
+    padding: 16px;
+  }
+}
 </style>

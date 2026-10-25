@@ -80,4 +80,11 @@ import AppIcon from '../../components/AppIcon.vue'
   color: var(--text-2);
   font-size: 12px;
 }
+
+/* ---------- 移动端（<768px）：缩小卡片内边距 ---------- */
+@media (max-width: 767.98px) {
+  .about-card {
+    padding: 28px 20px;
+  }
+}
 </style>

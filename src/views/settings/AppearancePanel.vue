@@ -148,4 +148,35 @@ const headingFont = computed({
   color: var(--accent);
   font-weight: 600;
 }
+
+/* ---------- 移动端（<768px）：行纵向堆叠，控件全宽、触屏热区 ≥44px ---------- */
+@media (max-width: 767.98px) {
+  .section {
+    padding: 6px 16px;
+  }
+
+  .row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .swatches {
+    gap: 12px;
+  }
+
+  .swatch {
+    width: 44px;
+    height: 44px;
+  }
+
+  .fake-select {
+    width: 100%;
+  }
+
+  .fake-option {
+    flex: 1;
+    min-height: 44px;
+  }
+}
 </style>

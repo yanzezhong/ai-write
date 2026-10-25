@@ -530,4 +530,86 @@ function save() {
   color: var(--text-3);
   font-size: 12px;
 }
+
+/* ---------- 移动端（<768px）：卡片/表单/按钮全宽单列，触屏热区 ≥44px，输入字号 ≥16px 防 iOS 聚焦缩放 ---------- */
+@media (max-width: 767.98px) {
+  .provider-cards {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .provider-card,
+  .add-card {
+    width: 100%;
+  }
+
+  .add-card {
+    min-height: 52px;
+  }
+
+  .delete-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .config-card {
+    padding: 16px;
+  }
+
+  .config-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .name-input {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    font-size: 18px;
+  }
+
+  .head-right {
+    width: 100%;
+  }
+
+  .head-right .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+
+  .test-result {
+    max-width: 100%;
+    word-break: break-word;
+  }
+
+  .input {
+    min-height: 44px;
+    font-size: 16px;
+  }
+
+  .mini-btn {
+    min-height: 44px;
+    padding: 10px 14px;
+  }
+
+  .model-trigger {
+    min-height: 44px;
+  }
+
+  .model-option {
+    min-height: 44px;
+  }
+
+  .config-foot {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .config-foot .btn.primary {
+    width: 100%;
+    min-height: 48px;
+  }
+}
 </style>

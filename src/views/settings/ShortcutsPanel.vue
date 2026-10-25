@@ -78,4 +78,12 @@ kbd {
   font-size: 12px;
   text-align: center;
 }
+
+/* ---------- 移动端（<768px）：缩小单元格内边距，保证表格不溢出 ---------- */
+@media (max-width: 767.98px) {
+  .shortcut-table th,
+  .shortcut-table td {
+    padding: 14px 14px;
+  }
+}
 </style>
