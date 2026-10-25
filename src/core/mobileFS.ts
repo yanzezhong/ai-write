@@ -24,13 +24,14 @@ export function isOPFSSupported(): boolean {
   )
 }
 
-/** 当前环境是否应走手机端存储（没有 File System Access，但有 OPFS） */
+/** 当前环境是否应走手机端存储（有 OPFS，且没有 File System Access 或为窄屏触屏设备） */
 export function isMobileEnv(): boolean {
-  return (
-    typeof window !== 'undefined' &&
-    !('showDirectoryPicker' in window) &&
-    isOPFSSupported()
-  )
+  if (typeof window === 'undefined') return false
+  if (!isOPFSSupported()) return false
+  if (!('showDirectoryPicker' in window)) return true
+  const narrowScreen = window.matchMedia('(max-width: 767px)').matches
+  const coarsePointer = window.matchMedia('(pointer: coarse)').matches
+  return narrowScreen && coarsePointer
 }
 
 async function opfsRoot(): Promise<FileSystemDirectoryHandle> {
