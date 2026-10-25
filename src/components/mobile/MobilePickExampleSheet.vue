@@ -75,8 +75,34 @@ const library = useLibraryStore()
 
 const tab = ref<'library' | 'paste'>('paste')
 const picked = ref<string | null>(null)
-const pasteName = ref('')
-const pasteText = ref('')
+
+// 粘贴草稿持久化：开始解析成功前，弹层关闭/切换页面/刷新都不丢内容
+const DRAFT_KEY = 'imitate-paste-draft'
+function loadDraft(): { name: string; text: string } {
+  try {
+    const d = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null')
+    if (d && typeof d.text === 'string') return { name: String(d.name ?? ''), text: d.text }
+  } catch {
+    /* 草稿损坏则丢弃 */
+  }
+  return { name: '', text: '' }
+}
+const draft = loadDraft()
+const pasteName = ref(draft.name)
+const pasteText = ref(draft.text)
+let draftTimer: ReturnType<typeof setTimeout> | null = null
+watch([pasteName, pasteText], ([name, text]) => {
+  if (draftTimer) clearTimeout(draftTimer)
+  draftTimer = setTimeout(() => {
+    if (text) localStorage.setItem(DRAFT_KEY, JSON.stringify({ name, text }))
+    else localStorage.removeItem(DRAFT_KEY)
+  }, 400)
+})
+function clearDraft() {
+  if (draftTimer) clearTimeout(draftTimer)
+  localStorage.removeItem(DRAFT_KEY)
+}
+
 const busy = ref(false)
 const error = ref('')
 const counts = ref<Record<string, number>>({})
@@ -141,6 +167,9 @@ async function start() {
     }
     const { setupImitateProject } = await import('../../services/imitateSetup')
     await setupImitateProject(name, text)
+    clearDraft()
+    pasteText.value = ''
+    pasteName.value = ''
     emit('close')
     await router.push({ name: 'imitate' })
   } catch (err) {
