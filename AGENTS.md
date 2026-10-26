@@ -3,7 +3,7 @@
 ## 仓库状态
 
 - 分支：`feat/backend`
-- 最新提交：`3b1cef2 docs: 更新 AGENTS.md 最新提交号`
+- 最新提交：`9864d15 docs: 更新 AGENTS.md 提交号与进度`
 - 工作目录：`/Users/gongzuozhanghu/Desktop/code/agent-write/front-end`
 - dev server：`npm run dev` 已在 `http://localhost:5173/` 运行
 - 构建：`npm run build` 通过（仅 chunk 体积警告）
