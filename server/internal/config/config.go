@@ -8,8 +8,9 @@ type Config struct {
 	Token string
 	// CORS 白名单
 	AllowOrigins []string
-	// MySQL（S2 起使用）
-	Mysql struct {
-		DataSource string
+	// MongoDB（文本项目内嵌单文档：单文档原子更新即天然 CAS，无需事务）
+	Mongo struct {
+		Uri      string
+		Database string
 	}
 }

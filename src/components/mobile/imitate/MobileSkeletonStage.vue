@@ -95,13 +95,13 @@
           </div>
           <div v-for="(s, si) in o.scenes" :key="s.id" class="scene">
             <div class="scene-row">
-              <input v-model="s.title" class="input sc-title" :disabled="o.locked" placeholder="场景" />
+              <input v-model="s.title" class="input sc-title" :disabled="o.locked" placeholder="场景" @input="o.dirty = true" />
               <button class="mini" :disabled="o.locked || si === 0" aria-label="上移" @click="imitate.moveScene(o.id, si, si - 1)">↑</button>
               <button class="mini" :disabled="o.locked || si === o.scenes.length - 1" aria-label="下移" @click="imitate.moveScene(o.id, si, si + 1)">↓</button>
               <button v-if="!o.locked" class="mini danger" aria-label="删除场景" @click="imitate.removeScene(o.id, s.id)">✕</button>
             </div>
             <textarea v-model="s.desc" class="input sc-desc" rows="1" :disabled="o.locked" placeholder="场景描述" @input="o.dirty = true"></textarea>
-            <button class="pill-btn sc-polish" :disabled="o.locked || imitate.generating" @click="imitate.aiPolish('scene-desc', o.id, s.id)">✨ 优化</button>
+            <button class="pill-btn sc-polish" :disabled="o.locked || !o.dirty || imitate.generating" @click="imitate.aiPolish('scene-desc', o.id, s.id)">✨ 优化</button>
           </div>
           <button v-if="!o.locked" class="pill-btn add-scene" @click="imitate.addScene(o.id)">+ 添加场景</button>
         </div>

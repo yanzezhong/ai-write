@@ -105,7 +105,7 @@
           </div>
           <textarea v-model="o.summary" class="input ch-summary" rows="2" :disabled="o.locked" placeholder="本章概要" @input="o.dirty = true"></textarea>
           <div v-for="(s, si) in o.scenes" :key="s.id" class="scene">
-            <input v-model="s.title" class="input sc-title" :disabled="o.locked" placeholder="场景" />
+            <input v-model="s.title" class="input sc-title" :disabled="o.locked" placeholder="场景" @input="o.dirty = true" />
             <textarea v-model="s.desc" class="input sc-desc" rows="1" :disabled="o.locked" placeholder="场景描述" @input="dirtyScene(o, s)"></textarea>
             <span class="row-tools">
               <button class="mini" :disabled="o.locked || imitate.generating" title="AI 优化场景描述" @click="imitate.aiPolish('scene-desc', o.id, s.id)">✨</button>
@@ -213,8 +213,9 @@ function onTags(p: ImitatePerson) {
   p.dirty = true
 }
 
-function dirtyScene(o: { id: string }, _s: ImitateScene) {
-  void o
+function dirtyScene(o: { dirty?: boolean }, _s: ImitateScene) {
+  void _s
+  o.dirty = true
 }
 
 function onDrop(to: number) {
