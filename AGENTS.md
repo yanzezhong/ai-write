@@ -3,7 +3,7 @@
 ## 仓库状态
 
 - 分支：`feat/backend`
-- 最新提交：`f06d92c feat: V2 资料库与笔记（阶段 0-D，核心链路已实测）`
+- 最新提交：`7b84a26 feat: V3 一键仿写收尾 + 后端同步`
 - 工作目录：`/Users/gongzuozhanghu/Desktop/code/agent-write/front-end`
 - dev server：`npm run dev` 已在 `http://localhost:5173/` 运行（PID 63073/63108）
 - 构建：`npm run build` 通过（仅 chunk 体积警告）
