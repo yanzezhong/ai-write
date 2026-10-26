@@ -117,6 +117,9 @@
       <path d="m12 3 9 5-9 5-9-5 9-5Z" />
       <path d="m3 13 9 5 9-5" />
     </template>
+    <template v-else-if="name === 'cloud'">
+      <path d="M18 10h-1.3A6 6 0 0 0 6 12.2 4 4 0 0 0 6 20h12a4 4 0 0 0 .8-7.9Z" />
+    </template>
     <template v-else-if="name === 'world'">
       <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2Z" />
       <path d="M9 4v14M15 6v14" />

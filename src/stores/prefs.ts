@@ -14,6 +14,10 @@ interface PrefsState {
   paragraphGap: ParagraphGap
   headingFont: HeadingFont
   theme: ThemeName
+  syncServerUrl: string
+  syncToken: string
+  syncDeviceName: string
+  syncDeviceKey: string
 }
 
 function initial(): PrefsState {
@@ -25,6 +29,10 @@ function initial(): PrefsState {
     paragraphGap: lsGet<ParagraphGap>('prefs.paragraphGap', '默认'),
     headingFont: lsGet<HeadingFont>('prefs.headingFont', '衬线标题'),
     theme: lsGet<ThemeName>('prefs.theme', '暖米白'),
+    syncServerUrl: lsGet('sync.serverUrl', 'http://localhost:8787'),
+    syncToken: lsGet('sync.token', ''),
+    syncDeviceName: lsGet('sync.deviceName', ''),
+    syncDeviceKey: lsGet('sync.deviceKey', ''),
   }
 }
 
@@ -48,6 +56,10 @@ export const usePrefsStore = defineStore('prefs', {
       lsSet('prefs.paragraphGap', this.paragraphGap)
       lsSet('prefs.headingFont', this.headingFont)
       lsSet('prefs.theme', this.theme)
+      lsSet('sync.serverUrl', this.syncServerUrl)
+      lsSet('sync.token', this.syncToken)
+      lsSet('sync.deviceName', this.syncDeviceName)
+      lsSet('sync.deviceKey', this.syncDeviceKey)
       applyTheme(this.theme)
     },
   },

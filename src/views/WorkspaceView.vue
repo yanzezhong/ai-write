@@ -64,6 +64,22 @@
         >
           ✨ 继续仿写
         </button>
+
+        <!-- 云同步状态 -->
+        <div class="sync-chip" :class="sync.status" :title="sync.lastError || ''">
+          <button v-if="!sync.isBound" class="sync-btn bind" :disabled="sync.busy" @click="bindSync">
+            <AppIcon name="cloud" :size="13" />
+            <span>{{ sync.busy ? '绑定中…' : '绑定到云端' }}</span>
+          </button>
+          <template v-else>
+            <button class="sync-btn" :disabled="sync.busy" @click="syncAction">
+              <AppIcon :name="syncIcon" :size="13" />
+              <span>{{ syncLabel }}</span>
+            </button>
+            <button class="sync-menu" title="解绑" @click="unbindSync">×</button>
+          </template>
+        </div>
+
         <button class="icon-btn" title="资料库" @click="router.push({ name: 'library' })">
           <AppIcon name="layers" :size="17" />
         </button>
@@ -72,6 +88,20 @@
         </button>
       </div>
     </header>
+
+    <!-- 同步横幅 -->
+    <div v-if="syncBanner" class="sync-banner" :class="sync.status">
+      <span>{{ syncBanner }}</span>
+      <div class="banner-actions">
+        <button v-if="sync.status === 'diverged'" class="btn primary" :disabled="sync.busy" @click="pushAnyway">
+          {{ sync.busy ? '同步中…' : '同步并生成分叉' }}
+        </button>
+        <button v-if="sync.status === 'forked'" class="btn" @click="goHomeResolve">
+          去首页解决
+        </button>
+        <button class="btn ghost" @click="sync.lastError = ''">忽略</button>
+      </div>
+    </div>
 
     <div class="main">
       <ActivityBar side="left" />
@@ -91,7 +121,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import ActivityBar from '../components/ActivityBar.vue'
 import SidePanel from '../components/SidePanel.vue'
@@ -110,6 +140,7 @@ import { useLayoutStore } from '../stores/layout'
 import { useLibraryStore } from '../stores/library'
 import { useProjectStore } from '../stores/project'
 import { useViewerStore } from '../stores/viewer'
+import { useSyncStore } from '../stores/sync'
 
 const router = useRouter()
 const editor = useEditorStore()
@@ -117,6 +148,7 @@ const layout = useLayoutStore()
 const project = useProjectStore()
 const viewer = useViewerStore()
 const library = useLibraryStore()
+const sync = useSyncStore()
 
 const aiDialog = ref<{ actionId: string | null; readOnly: boolean } | null>(null)
 const archivingNote = ref(false)
@@ -127,6 +159,68 @@ const isNoteOpen = computed(() => !!editor.doc?.path.startsWith('notes/'))
 
 /** 全书字数 = 文档列表字数之和（当前文档打开/保存时已同步进列表） */
 const totalWords = computed(() => project.docs.reduce((sum, d) => sum + d.wordCount, 0))
+
+const syncIcon = computed(() => {
+  switch (sync.status) {
+    case 'synced':
+      return 'check'
+    case 'dirty':
+      return 'edit'
+    case 'diverged':
+    case 'forked':
+      return 'move'
+    case 'pulling':
+    case 'pushing':
+      return 'refresh'
+    case 'offline':
+      return 'help'
+    default:
+      return 'cloud'
+  }
+})
+
+const syncLabel = computed(() => {
+  if (sync.status === 'unbound') return '未绑定'
+  if (sync.status === 'synced') return `v${sync.cloudVersion} 已同步`
+  if (sync.status === 'dirty') return '待同步'
+  if (sync.status === 'diverged') return '分叉前兆'
+  if (sync.status === 'forked') return '已分叉'
+  if (sync.status === 'offline') return '离线'
+  return sync.statusLabel
+})
+
+const syncBanner = computed(() => {
+  if (sync.status === 'offline' && sync.lastError) return `同步失败：${sync.lastError}`
+  if (sync.status === 'diverged') return '云端已有新版本，你的修改与之分叉；同步后将生成分叉项目。'
+  if (sync.status === 'forked') return '你正在分叉上工作，请到首页分叉管理择一解决。'
+  return ''
+})
+
+async function syncAction() {
+  if (!sync.isBound) return
+  await editor.flush()
+  await sync.manualSync()
+}
+
+async function bindSync() {
+  await editor.flush()
+  await sync.bindToCloud(project.projectName)
+  if (sync.isBound) sync.startPolling()
+}
+
+async function unbindSync() {
+  if (!window.confirm('解除当前项目的云端绑定？本地文件不会删除。')) return
+  await sync.unbind()
+}
+
+async function pushAnyway() {
+  await editor.flush()
+  await sync.push()
+}
+
+function goHomeResolve() {
+  router.push({ name: 'home' })
+}
 
 function openAIDialog(payload: { actionId: string; source: 'editor' | 'viewer' }) {
   if (payload.source === 'editor') {
@@ -194,6 +288,21 @@ onMounted(async () => {
   } catch {
     /* 无仿写进度 */
   }
+
+  // 初始化云同步
+  try {
+    await sync.loadBinding()
+    if (sync.isBound) sync.startPolling()
+  } catch {
+    /* 同步初始化失败不阻断工作区 */
+  }
+  watch(
+    () => editor.dirty,
+    (dirty) => {
+      if (!dirty) void sync.markDirty()
+    },
+  )
+
   window.addEventListener('keydown', onKeydown)
 })
 
@@ -205,6 +314,7 @@ async function resumeImitate() {
 
 onBeforeUnmount(() => {
   window.removeEventListener('keydown', onKeydown)
+  sync.stopPolling()
 })
 </script>
 
@@ -335,5 +445,74 @@ onBeforeUnmount(() => {
   flex: 1;
   min-height: 0;
   display: flex;
+}
+
+.sync-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  background: var(--panel);
+  font-size: 12px;
+  overflow: hidden;
+}
+.sync-chip.synced {
+  border-color: var(--green);
+  color: var(--green);
+}
+.sync-chip.dirty,
+.sync-chip.diverged,
+.sync-chip.forked {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.sync-chip.offline {
+  border-color: var(--text-3);
+  color: var(--text-3);
+}
+.sync-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+}
+.sync-btn.bind {
+  color: var(--accent);
+}
+.sync-btn:disabled {
+  opacity: 0.6;
+}
+.sync-menu {
+  padding: 4px 8px;
+  border-left: 1px solid var(--border);
+  color: var(--text-3);
+}
+.sync-menu:hover {
+  color: var(--text);
+}
+
+.sync-banner {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.sync-banner.diverged {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.sync-banner.offline {
+  background: var(--bg-deep);
+  color: var(--text-2);
+}
+.banner-actions {
+  display: flex;
+  gap: 8px;
 }
 </style>

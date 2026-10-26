@@ -34,6 +34,7 @@ import AppIcon from '../components/AppIcon.vue'
 import { router } from '../router'
 import ProvidersPanel from './settings/ProvidersPanel.vue'
 import GeneralPanel from './settings/GeneralPanel.vue'
+import SyncPanel from './settings/SyncPanel.vue'
 import EditorPanel from './settings/EditorPanel.vue'
 import AppearancePanel from './settings/AppearancePanel.vue'
 import ShortcutsPanel from './settings/ShortcutsPanel.vue'
@@ -42,6 +43,7 @@ import AboutPanel from './settings/AboutPanel.vue'
 const navItems = [
   { key: 'general', label: '通用', icon: 'layers' },
   { key: 'ai', label: 'AI 供应商', icon: 'sparkles' },
+  { key: 'sync', label: '云同步', icon: 'cloud' },
   { key: 'editor', label: '编辑器', icon: 'edit' },
   { key: 'appearance', label: '外观', icon: 'globe' },
   { key: 'shortcuts', label: '快捷键', icon: 'characters' },
@@ -55,6 +57,7 @@ const activeNav = ref<NavKey>('ai')
 const panels: Record<NavKey, object> = {
   general: GeneralPanel,
   ai: ProvidersPanel,
+  sync: SyncPanel,
   editor: EditorPanel,
   appearance: AppearancePanel,
   shortcuts: ShortcutsPanel,

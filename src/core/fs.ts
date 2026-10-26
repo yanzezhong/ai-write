@@ -1,4 +1,5 @@
 import type { FileInfo } from '../types'
+export type { FileInfo }
 
 /**
  * 文件系统抽象层。所有文件读写必须经此接口；

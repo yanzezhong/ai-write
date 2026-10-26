@@ -56,8 +56,13 @@
               <template v-if="p.docCount != null || p.wordCount != null">
                 {{ p.docCount ?? 0 }} 章<template v-if="p.wordCount != null"> · {{ formatWords(p.wordCount) }}</template>
               </template>
+              <span v-if="bindingOf(p)" class="sync-badge" :class="bindingOf(p)?.status">
+                <AppIcon :name="bindingOf(p)?.status === 'synced' ? 'check' : 'cloud'" :size="11" />
+                v{{ bindingOf(p)?.version }}
+              </span>
             </span>
             <span class="recent-time">{{ timeAgo(p.openedAt) }}</span>
+            <span v-if="!bindingOf(p)" class="bind-hit" @click.stop="bindAndOpen(p)">绑定到云端</span>
           </button>
         </div>
         <div v-else class="recent-empty card">
@@ -78,18 +83,47 @@ import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import PickExampleDialog from '../components/PickExampleDialog.vue'
-import { formatWords, idbGet, lsGet, timeAgo } from '../core/storage'
+import { formatWords, idbGet, lsGet, lsSet, timeAgo } from '../core/storage'
 import { pickDirectory } from '../services/picker'
 import { useProjectStore } from '../stores/project'
+import { useSyncStore, type SyncBindingSummary } from '../stores/sync'
 import type { RecentProject } from '../types'
 
 const router = useRouter()
 const project = useProjectStore()
+const sync = useSyncStore()
 
 const showDialog = ref(false)
 const showPick = ref(false)
 const opening = ref(false)
 const recentProjects = ref<RecentProject[]>(lsGet<RecentProject[]>('recentProjects', []))
+const syncBindings = ref<Record<string, SyncBindingSummary>>(lsGet<Record<string, SyncBindingSummary>>('sync.bindings', {}))
+
+function bindingOf(p: RecentProject): SyncBindingSummary | undefined {
+  return syncBindings.value[p.dirName]
+}
+
+async function bindAndOpen(recent: RecentProject) {
+  if (opening.value) return
+  opening.value = true
+  try {
+    const handle = await idbGet<FileSystemDirectoryHandle>('handles', recent.dirName)
+    if (!handle) {
+      alert('无法获取该项目句柄，请先正常打开一次项目以完成授权。')
+      return
+    }
+    await project.openWithHandle(handle)
+    await sync.bindToCloud(project.projectName)
+    if (sync.isBound) sync.startPolling()
+    syncBindings.value = lsGet<Record<string, SyncBindingSummary>>('sync.bindings', {})
+    await router.push({ name: 'workspace' })
+  } catch (err) {
+    console.error('[绑定并打开]', err)
+    alert(err instanceof Error ? err.message : '绑定失败')
+  } finally {
+    opening.value = false
+  }
+}
 
 function showHelp() {
   alert('AI 写作器 · 使用说明\n\n· 项目即本地文件夹，数据全部保存在你的电脑上\n· 新建项目：选择父文件夹后会自动创建 大纲 / 正文 / 人物库 / 随笔 目录结构\n· 打开项目：通过 File System Access API 授权文件夹读写权限\n· 若文件夹选择窗口无法出现（如内嵌浏览器），可先用首页的「演示模式」体验\n· 仅支持 Chrome / Edge 浏览器')
@@ -321,5 +355,49 @@ async function startDemo() {
   gap: 10px;
   padding: 48px 20px;
   color: var(--text-3);
+}
+
+.sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 8px;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 11px;
+  background: var(--bg-deep);
+  color: var(--text-2);
+}
+.sync-badge.synced {
+  background: var(--green-soft, rgba(74, 190, 120, 0.15));
+  color: var(--green);
+}
+.sync-badge.dirty,
+.sync-badge.diverged,
+.sync-badge.forked,
+.sync-badge.offline {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+.bind-hit {
+  display: none;
+  position: absolute;
+  right: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 12px;
+}
+.recent-card:hover .bind-hit,
+.recent-card:focus-within .bind-hit {
+  display: inline-block;
+}
+@media (hover: none) and (pointer: coarse) {
+  .bind-hit {
+    display: inline-block;
+  }
 }
 </style>
