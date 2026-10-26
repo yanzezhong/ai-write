@@ -1,0 +1,16 @@
+Name: aiwrite-api
+Host: 0.0.0.0
+Port: 8787
+
+# 单用户令牌（首期鉴权；客户端设置页填同一值）
+Token: "aiwrite-dev-token"
+
+# CORS 白名单（开发端 + 自部署域名）
+AllowOrigins:
+  - http://localhost:5173
+  - http://localhost:4173
+  - https://localhost:5173
+
+# S2 起使用（docker-compose 会带上 MySQL）
+Mysql:
+  DataSource: "root:aiwrite-pass@tcp(127.0.0.1:13306)/aiwrite?parseTime=true&charset=utf8mb4"

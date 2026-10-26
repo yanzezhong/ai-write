@@ -1,0 +1,34 @@
+# AI 写作器云同步服务（go-zero + MySQL）
+# 用法：docker compose up -d --build
+# MySQL 暴露 13306（避开本机可能已有的 3306）
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: aiwrite-pass
+      MYSQL_DATABASE: aiwrite
+      TZ: Asia/Shanghai
+    ports:
+      - "13306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-paiwrite-pass"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build: .
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      # 覆盖 etc 配置：容器内连 mysql 服务名
+      AIWRITE_MYSQL_DSN: "root:aiwrite-pass@tcp(mysql:3306)/aiwrite?parseTime=true&charset=utf8mb4"
+    ports:
+      - "8787:8787"
+
+volumes:
+  mysql-data:
