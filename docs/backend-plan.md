@@ -1,252 +1,184 @@
-# AI 写作器 · 后端开发方案（云同步 / 多端）
+# AI 写作器 · 云同步简版方案（V1）
 
-> 分支：`feat/backend` · 状态：**方案评审稿（未开发）** · 日期：2026-10-26
-> 结论先行：**云端是"可选的第二种存储后端"，本地优先架构零改动**。云存储不影响本地化存储——二者通过既有 `FSAdapter` 抽象层隔离，客户端只新增一个 `RemoteFSAdapter`（远端文件适配器）和一个「从云端打开」入口。
+> 分支：`feat/backend` · 状态：**方案稿（待确认后开工）** · 日期：2026-10-26
+> 上一版"云端作为文件后端 + RemoteFSAdapter"的大方案降级为**远期参考**（见附录 B），本期不做。
 
 ---
 
-## 1. 背景与目标
+## 0. 一句话方案
 
-- 写作系统保持**本地优先**：项目 = 本地文件夹（File System Access），不联网也完整可用
-- 云端只做一件事：**保存项目数据**，让同一份资料在手机/电脑/任意浏览器可继续用
-- 账号体系：云端需要（多设备/换机），但实施可以后置（先单用户令牌跑通闭环）
-- 资料库（总资料库）远期可接 WebDAV / OneDrive 等第三方同步，本期只留扩展位，不实现
-- 技术栈：**go-zero**（Go），MySQL 存储（备选 SQLite，见 §8 决策点）
+**本地照旧编辑，云端保存项目文本内容的镜像**。手动按「同步」把改动推上云（推一次且内容有变 = 版本号 +1）；每 10 分钟轮询服务器版本号，云端更新且本地干净时自动拉取；**云端更新且本地也有未同步修改时，锁定项目**，标记"落后于其他版本"，只允许手动选择：用云端覆盖本地 / 以本地为准推送为新版本。
 
-## 2. 现有数据全景（盘点"我们要存什么"）
+## 1. 范围（本期做什么 / 不做什么）
 
-### 2.1 项目内数据（一个项目 = 一个文件夹）
-
-| 路径 | 内容 | 格式 |
-|---|---|---|
-| `project.json` | 项目元信息（name/createdAt/schema） | JSON |
-| `outline.md` | 剧情大纲（树 = 标题层级） | Markdown |
-| `chapters/*.md` | 正文文档 | Markdown |
-| `characters/*.md` | 人物卡（姓名/角色/身份/标签 + 描述） | Markdown |
-| `worldview/*.md` | 世界观卡（名称/类别/身份/标签 + 描述） | Markdown |
-| `notes/*.md` | 随笔、AI 总结笔记、文风样例 | Markdown |
-| `worldbuilding/例文原文.md` | 一键仿写的例文存档 | Markdown |
-| `worldbuilding/imitate.json` | 仿写状态机（四步解析结果/骨架/进度） | JSON |
-| `worldbuilding/*.json` | 结构化世界观（预留） | JSON |
-
-### 2.2 用户级数据（跨项目，目前在浏览器里）
-
-| 数据 | 当前位置 | 内容 |
-|---|---|---|
-| 总资料库 | 本地文件夹 `files/ + meta.json` | 资料文件（含 PDF/PNG 二进制）+ 标签组/标签/文件-标签映射 |
-| AI 会话记录 | IndexedDB `chat` | 多轮会话（含 projectName 关联） |
-| AI 供应商配置 | localStorage | Key/baseUrl/model（**只留本地，不上云**） |
-| 界面偏好 | localStorage | 字号/行宽/主题/布局/最近项目/会话恢复 |
-| 项目目录句柄 | IndexedDB `handles` | File System Access 授权句柄（浏览器特有，无云意义） |
-| 浏览器内 Git | IndexedDB `gitfs` | isomorphic-git 对象库（本项目版本管理，云上用文件版本替代，见 §6.6） |
-
-## 3. 存储模式设计：本地 or 云端，互不影响
-
-### 3.1 原则
-
-1. **一切读写走 FSAdapter**（现有纪律，`core/fs.ts`）：本地 = `WebFSAdapter`，演示 = `MemoryFSAdapter`，新增云端 = `RemoteFSAdapter`。三者在客户端代码里完全等价，业务层（项目/大纲/人物/仿写/资料库）零改动。
-2. **数据格式完全同构**：云端存的就是同一个"文件夹"（同样的路径、同样的 md/json），随时可打包 zip 下载回本地、或从本地上传。本地 ⇄ 云端可无损往返迁移。
-3. **打开方式即存储方式**：项目在「新建项目」时选择"保存到本地文件夹 / 保存到云端"；或从首页分别入口打开。不存在自动双向同步（那是 M6 的大项）。
-4. 本地模式不引入任何云依赖、不要求登录；云服务宕机时本地功能 100% 可用。
-
-### 3.2 云存储对本地的影响 = 0 的论证
-
-| 维度 | 影响 |
+| | 内容 |
 |---|---|
-| 现有本地流程 | 不改一行逻辑，`WebFSAdapter` 原样 |
-| 离线可用性 | 本地模式天然离线；云端模式 V1 需在线（离线缓存是 M6） |
-| 数据所有权 | 云端任意时刻可整包导出 zip = 本地文件夹结构 |
-| 冲突风险 | V1 不做双写，不存在冲突面；同一云端项目多端同时编辑 = 文件级最后写入胜出 + 提示 |
+| ✅ 同步 | 项目内**全部文本**：project.json、outline.md、chapters/、characters/、worldview/、notes/、worldbuilding/（例文 + imitate.json） |
+| ❌ 不同步 | 二进制/多媒体（图片、PDF——本期若出现一律跳过）；总资料库；AI 聊天记录；界面偏好；浏览器内 Git 数据 |
+| ❌ 不做 | 自动双向合并、历史版本快照、离线队列、WebDAV/OneDrive、注册登录界面（先用单用户令牌，表已预留） |
 
-### 3.3 客户端改造点清单（唯一动的地方）
+冲突策略：**不做合并，以最新提交为准**；无法判定谁最新（分叉）→ 锁定 + 手动二选一。
 
-- 新增 `core/remoteFS.ts`：`RemoteFSAdapter implements FSAdapter`（fetch + JWT，含 readBinary/writeBinary）
-- `stores/project.ts`：新增 `openFromCloud(projectId)` / `createCloud(name)`（与 openWithHandle/create 并列）
-- 首页/新建弹窗：增加"云端"入口与登录态展示（未登录时引导登录）
-- `services/session.ts`：恢复会话时区分 local/cloud
-- 其余（编辑器、大纲、人物、仿写、资料库、选中 AI）全部零改动——这就是 FSAdapter 抽象的回报
+## 2. 版本与指纹（核心机制）
 
-## 4. 总体架构
+- **版本号 version**：每个项目在服务端一个自增整数。**只有"点了同步按钮且内容确实有变化"才 +1**；本地编辑不改变版本号，只让本地指纹变脏。
+- **指纹 md5**：对项目全部文本文件的确定性摘要。算法：取所有文件按 `path` 字典序排序，拼接 `md5(path + "\0" + content + "\0")`，对拼接串再 md5，得 32 位指纹。文本 only，量小，客户端毫秒级可算。
+- 服务端权威记录：`projects.current_version + current_md5`。同一版本号在服务端的指纹不变（不可变）；本地指纹与本地内容实时对应。
 
-```
-┌─ 浏览器（本地优先，不变） ────────────────────────┐
-│  Vue3 应用                                          │
-│   ├─ 本地模式: FSAdapter = WebFSAdapter(本地文件夹) │
-│   ├─ 演示模式: MemoryFSAdapter                      │
-│   └─ 云端模式: RemoteFSAdapter ──HTTPS/JWT──┐       │
-└─────────────────────────────────────────────┼──────┘
-                                              ▼
-                    ┌─ go-zero API 服务 ──────────────┐
-                    │  auth │ projects │ fs(文件读写) │
-                    │  中间件: JWT / CORS / 日志       │
-                    └───────────┬────────────────────-┘
-                                ▼
-                       MySQL（见 §5 表设计）
-                                ▼
-                 （远期）资料库 WebDAV / OneDrive 后端
-```
+### 2.1 同步状态判定（每 10 分钟轮询 + 打开项目时）
 
-go-zero 工程结构（goctl 生成 + 手写 logic）：
+| 服务端 | 本地 | 状态 | 动作 |
+|---|---|---|---|
+| v 相同，md5 相同 | — | ✅ 已同步 | 无 |
+| v 更大，本地干净（本地 md5 == 所基于版本的 md5） | 无未同步修改 | 📥 落后 | **自动拉取**覆盖本地，版本对齐 |
+| v 更大，本地脏（有未同步修改） | 有未同步修改 | 🔒 **锁定** | 标记"落后于其他版本"，禁编辑，弹横幅 + 手动二选一（§2.2） |
+| v 相同，md5 不同（例：云 v4=1212121，本地 v4=9879987） | 本地脏 | ✏️ 待推送 | 正常态：本地有编辑还没同步，同步按钮可推送 |
+| v 相同，md5 不同 且本地自认干净 | — | 🔒 异常锁定 | 本地数据与该版本权威指纹不符（如换机/误改文件），同样锁定走手动 |
 
-```
-server/
-├── api/aiwrite.api            # 接口 DSL（goctl 生成 handler/types）
-├── etc/aiwrite-api.yaml       # 配置（端口/DB/JWT 密钥）
-├── internal/
-│   ├── config/  handler/  logic/  middleware/  svc/  types/
-├── model/                     # goctl model（表访问）
-└── main.go
-```
+> 用户示例中的「云 v4 md5 1212121 / 本地 v4 md5 9879987」即最后两行：本地有未同步编辑。若此时云端没动，就是待推送；若轮询发现云端已到 v5，即进入锁定。
 
-## 5. 数据库表设计
+### 2.2 锁定的手动二选一
 
-### 5.1 设计取向：一切皆文件 + 最小表集
+锁定后项目**只读**（编辑器与各应用禁用写入），横幅常驻：
 
-云端复用本地的"项目=文件夹"心智模型：**文件内容全部进 `project_files`（文本列 + 二进制列）**，目录结构用 path 表达。资料库与聊天会话**默认也走文件表**（见 §5.3），因此核心只有 4 张表。
+- **「用云端版本覆盖本地」**：拉取全量 → 写回本地文件夹 → 解锁，版本对齐
+- **「以本地为准推送」**：本地内容作为新版本（v+1）推送 → 解锁，其他设备随后自动拉取
 
-> 备选方案 B（资料库/聊天拆成规范化的标签表、会话表）见 §5.4——除非未来要做服务端标签检索/全文搜索，否则 A 更省、客户端改动最小。
+## 3. 多端使用流程
 
-### 5.2 核心表（DDL 草案）
+1. **桌面端首次上云**：打开本地项目 → 顶栏「同步到云端」→ 服务端建项目 → 首次推送（v1）
+2. **手机端/其他设备**：首页「从云端打开」→ 列表选择 → 全量拉取到本地工作区（手机 = 内存/OPFS；桌面 = 选择本地文件夹落盘）→ 之后与桌面端等价：编辑、手动推送、10 分钟轮询
+3. 绑定关系（cloudProjectId + baseVersion + baseMd5）存于项目目录 `project.json` 旁的 `.sync.json`（随项目走，不进版本内容）
+
+## 4. 服务端设计（go-zero）
+
+### 4.1 表（简版 4 张）
 
 ```sql
--- 账号（本期可先单用户令牌，表先建好）
-CREATE TABLE users (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  username      VARCHAR(64)  NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,           -- bcrypt
-  display_name  VARCHAR(64)  NOT NULL DEFAULT '',
-  status        TINYINT      NOT NULL DEFAULT 1, -- 1正常 0禁用
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+CREATE TABLE users (            -- 本期单用户令牌即可，表先建好
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  username VARCHAR(64) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  display_name VARCHAR(64) NOT NULL DEFAULT '',
+  status TINYINT NOT NULL DEFAULT 1,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- 项目（= 云端的一个"文件夹"）
 CREATE TABLE projects (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id       BIGINT UNSIGNED NOT NULL,
-  name          VARCHAR(128) NOT NULL,
-  description   VARCHAR(512) NOT NULL DEFAULT '',
-  schema_version INT NOT NULL DEFAULT 1,
-  file_count    INT NOT NULL DEFAULT 0,          -- 冗余，列表页展示
-  total_bytes   BIGINT NOT NULL DEFAULT 0,       -- 冗余
-  last_opened_at DATETIME NULL,
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted_at    DATETIME NULL,                   -- 软删（回收站）
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  user_id BIGINT UNSIGNED NOT NULL,
+  name VARCHAR(128) NOT NULL,
+  current_version INT NOT NULL DEFAULT 0,      -- 当前版本号（0=未推送过）
+  current_md5 CHAR(32) NOT NULL DEFAULT '',    -- 当前版本权威指纹
+  file_count INT NOT NULL DEFAULT 0,
+  total_bytes BIGINT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,
   KEY idx_user (user_id, updated_at)
 );
 
--- 项目文件（FSAdapter 语义 1:1；文本/二进制同表分列）
-CREATE TABLE project_files (
-  id            BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  project_id    BIGINT UNSIGNED NOT NULL,
-  path          VARCHAR(512) NOT NULL,           -- 'chapters/第一章.md'，根为 ''
-  is_dir        TINYINT NOT NULL DEFAULT 0,
-  kind          TINYINT NOT NULL DEFAULT 0,      -- 0文本 1二进制
-  content_text  MEDIUMTEXT NULL,                 -- utf8mb4
-  content_blob  LONGBLOB NULL,                   -- PDF/PNG 等
-  size          BIGINT NOT NULL DEFAULT 0,
-  sha256        CHAR(64) NOT NULL DEFAULT '',    -- 客户端带 etag 写回可做乐观校验
-  created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  deleted_at    DATETIME NULL,
-  UNIQUE KEY uk_path (project_id, path),
-  KEY idx_proj (project_id, updated_at)
+CREATE TABLE project_files (   -- 只存文本；本期无二进制列
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  project_id BIGINT UNSIGNED NOT NULL,
+  path VARCHAR(512) NOT NULL,                 -- 'chapters/第一章.md'
+  content MEDIUMTEXT NOT NULL,                -- utf8mb4
+  sha256 CHAR(64) NOT NULL DEFAULT '',        -- 单文件校验/增量比对用
+  size INT NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  deleted_at DATETIME NULL,                   -- 软删（同步删除语义）
+  UNIQUE KEY uk_path (project_id, path)
 );
 
--- 登录态（JWT 无状态；此表只为"登出全部设备/换密码"，可后置）
-CREATE TABLE refresh_tokens (
-  id         BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
-  user_id    BIGINT UNSIGNED NOT NULL,
-  token_hash CHAR(64) NOT NULL,
-  expires_at DATETIME NOT NULL,
+CREATE TABLE project_versions ( -- 版本台账（只记指纹不存快照）
+  project_id BIGINT UNSIGNED NOT NULL,
+  version INT NOT NULL,
+  md5 CHAR(32) NOT NULL,
+  file_count INT NOT NULL,
+  total_bytes BIGINT NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  KEY idx_user (user_id)
+  PRIMARY KEY (project_id, version)
 );
 ```
 
-### 5.3 用户级数据在云端的位置（方案 A）
+### 4.2 API
 
-| 数据 | 云端形态 | 说明 |
-|---|---|---|
-| 总资料库 | 虚拟项目（`projects.kind='library'` 或保留 id 约定）下的 `files/**` + `meta.json` | 客户端 library store 走同一套 fs API，标签结构原样存 meta.json |
-| AI 会话记录 | 同上虚拟项目 `chats/*.json`（可选，M5） | 一个会话一个文件，含 projectName |
-| 界面偏好 | `user_settings(user_id, k, v JSON)`（可选，M5） | 远期表，本期不建 |
-
-### 5.4 备选方案 B（记录，暂不采用）
-
-`library_files / library_tag_groups / library_tags / library_file_tags / chat_sessions / chat_messages` 规范化六表。优点：服务端可查标签/检索会话；缺点：客户端两套逻辑、迁移复杂。触发条件：未来要做服务端搜索或资料库多人共享时再迁。
-
-## 6. API 设计（与 FSAdapter 一一对应）
-
-Base：`/api`，鉴权：`Authorization: Bearer <JWT>`
-
-### 6.1 账号
+鉴权：`Authorization: Bearer <token>`（本期单用户令牌走环境变量；注册登录接口按 users 表预留 M2）
 
 | Method | Path | 说明 |
 |---|---|---|
-| POST | `/auth/register` | {username, password} 注册 |
-| POST | `/auth/login` | → {accessToken, expiresIn} |
-| POST | `/auth/logout-all` | 吊销全部 refresh token（登出所有设备） |
-| GET | `/me` | 当前用户信息 |
+| GET | `/api/health` | 健康检查 |
+| GET | `/api/projects` | 云端项目列表（version/md5/文件数/更新时间） |
+| POST | `/api/projects` | 创建 {name}（version=0，等首次推送） |
+| DELETE | `/api/projects/:id` | 删除（软删） |
+| GET | `/api/projects/:id/state` | **轮询用**：{version, md5, updatedAt}（轻量） |
+| POST | `/api/projects/:id/pull` | 全量拉取：{version, md5, files:[{path, content}]} |
+| POST | `/api/projects/:id/push` | 推送：{baseVersion, files:[{path, content, deleted?}]}；服务端校验 baseVersion == current_version，不符 → **409 {serverVersion, serverMd5}**（客户端转锁定）；成功 → version+1、重算 md5、返回 {version, md5} |
 
-### 6.2 项目
+推送为**全量文本**（简版不做增量 diff；写作项目文本量级 MB 内，够用）。服务端 push 事务：upsert 全部文件 + 删除标记 + 写台账 + 更新 projects。
 
-| Method | Path | 说明 |
-|---|---|---|
-| GET | `/projects` | 列表（name/统计/updated_at，支持搜索） |
-| POST | `/projects` | 创建 {name}（服务端生成 project.json/outline.md 初始结构，与本地 create() 一致） |
-| PATCH | `/projects/:id` | 改名/描述 |
-| DELETE | `/projects/:id` | 软删 |
-| GET | `/projects/:id/archive` | 导出 zip（= 本地文件夹结构，可导入回本地） |
+### 4.3 部署
 
-### 6.3 文件（FSAdapter 1:1，项目与资料库共用）
+- 单二进制 + MySQL；`etc/aiwrite-api.yaml` 配置端口/DB/Token
+- docker-compose（app + mysql）一键起；CORS 白名单 5173/4173/自部署域名
 
-| Method | Path | 对应 FSAdapter |
-|---|---|---|
-| GET | `/projects/:id/fs/list?path=` | listDir |
-| HEAD | `/projects/:id/fs/file?path=` | exists |
-| GET | `/projects/:id/fs/file?path=` | readFile（text；`?binary=1` → readBinary） |
-| PUT | `/projects/:id/fs/file?path=` | writeFile / writeBinary（body 为内容；`If-Match: sha256` 可选乐观锁） |
-| POST | `/projects/:id/fs/dir` {path} | createDir |
-| DELETE | `/projects/:id/fs/file?path=` | delete（递归） |
-| POST | `/projects/:id/fs/move` {from,to} | rename |
-| POST | `/projects/:id/fs/upload?path=` | 二进制上传（multipart，导入 PDF 用） |
+## 5. 客户端设计
 
-约束：路径校验（禁 `..`/绝对路径，防穿越）；单文件 ≤ 50MB（资料库 PDF）；请求体上限 64MB。
+### 5.1 新增 `stores/sync.ts`（同步状态机）
 
-### 6.4 安全与运维
+```
+状态：idle（未绑定）/ synced / dirty（本地有未同步修改）/ pulling / pushing / locked / offline
+- 绑定：项目打开时读 .sync.json；无绑定则显示「同步到云端」入口
+- 轮询：项目打开期间每 10 分钟（页面可见时才计，出错退避 ×2，上限 1h）；打开项目时立即一次
+- 拉取：state.version > 本地 baseVersion 且本地干净 → 自动 pull → 全量写回本地 → baseVersion/md5 更新
+- 推送：仅手动按钮；409 → locked
+- 指纹：本地 md5 按需计算（轮询比对 / 推送前），沿用 §2 算法
+```
 
-- CORS 白名单：localhost:5173/4173 及自部署域名
-- 速率限制（go-zero 内置中间件）：auth 接口防爆破
-- 日志：go-zero 自带；文件写操作留审计行（who/when/path）
-- 备份：mysqldump 定时 + `project_files` 每日快照表（或 M6 的 file_versions）
+### 5.2 UI 接入点
 
-## 7. 功能清单与分期
+- **顶栏**：同步状态图标（✅已同步 v7 / ✏️待同步 / ⏳同步中 / 🔒已锁定 / ⚪未绑定）+「立即同步」按钮
+- **锁定横幅**（WorkspaceView 顶部）："本项目在其他设备有新版本（v8），本地有未同步修改，已锁定编辑" + [用云端覆盖本地] [以本地为准推送]
+- **首页**：「从云端打开」入口 → 云端项目列表
+- `.sync.json`：`{ cloudProjectId, baseVersion, baseMd5 }`，同步引擎读写，不计入指纹
 
-| 期 | 内容 | 交付物 |
-|---|---|---|
-| **M0** | 方案评审（本文档） | 定稿 |
-| **M1** | go-zero 骨架 | 工程 + /healthz + 配置 + docker-compose（app+mysql）+ CI |
-| **M2** | 账号 | 注册/登录/JWT/登出全部（或先单用户令牌，见 §8-2） |
-| **M3** | **核心闭环** | 项目 CRUD + 文件 API + 客户端 RemoteFSAdapter + 「云端新建/打开」+ 自动保存走通 |
-| **M4** | 资料库上云 + zip 导出/导入 | 虚拟项目挂 library；本地⇄云端迁移闭环 |
-| **M5** | 可选增强 | 聊天会话上云、偏好同步 |
-| **M6** | 双向同步（大项） | 本地缓存离线编辑 + 变更上传（LWW/冲突副本 `xxx.conflict.md`）+ file_versions 历史 |
-| **M7** | 远期 | 资料库 WebDAV/OneDrive 后端（FSAdapter 服务端版）、分享只读链接 |
+### 5.3 改动文件清单
 
-浏览器内 Git（isomorphic-git）继续服务本地模式；云端模式的历史版本由 M6 的 file_versions 承接，两套不打通。
+`core/sync.ts`（指纹/打包/写回）、`stores/sync.ts`、`WorkspaceView`（状态图标+横幅）、`HomeView`（云端列表）、`services/api.ts`（fetch 封装）、设置页（服务端地址 + 令牌）。**编辑器/大纲/人物/仿写等业务层零改动。**
 
-## 8. 决策点（需要你拍板）
+## 6. 边界与约束
 
-1. **数据库**：MySQL 8（推荐：go-zero 生态原生、账号/扩展稳）还是 SQLite（单文件部署更轻，但 go-zero 需要第三方支持）？
-2. **M2 账号做到什么程度**：a) 完整注册登录（推荐，表已设计）；b) 先环境变量单用户令牌跑通 M3，注册后补？
-3. **聊天会话是否上云**（M5 做不做）？
-4. **部署目标**：本机 / 家里 NAS / 云服务器？影响 HTTPS 与域名方案（手机端要 HTTPS 才有部分能力）。
+- 轮询只拿 `state`（version+md5，几十字节），不拉内容；拉内容只在需要时一次全量
+- 推送与拉取期间加进程锁防并发（同一时间仅一个同步动作）
+- 文本上限：单文件 2MB、单项目 32MB（超限报错提示，本期不优化）
+- 令牌存 localStorage（同 AI Key 待遇，不上云）
+- 服务端时钟仅用于展示，先后判定只看版本号（避免时钟漂移）
 
-## 9. 风险记录
+## 7. 开发顺序（确认方案后）
 
-- 手机端 File System Access 不可用 → 云端模式恰好是移动端的**主存储方案**（与 V4 手机版天然互补）
-- 大文件（PDF）进 LONGBLOB 便于打包备份；若未来量大再外置对象存储（接口不变，仅实现替换）
-- 文本用 utf8mb4 防 emoji 丢字
-- 多端同编辑 V1 无锁：按文件最后写入胜出，UI 提示"他端有更新"（etag 不匹配时）
+1. **S1 服务端骨架**：go-zero 工程 + health + 单用户令牌中间件 + docker-compose
+2. **S2 项目与同步 API**：projects CRUD + state/pull/push（含 409 语义）
+3. **S3 客户端同步引擎**：sync store + 指纹 + 顶栏状态 + 手动推送 + 轮询自动拉取
+4. **S4 锁定与多端**：锁定横幅 + 二选一 + 「从云端打开」+ 手机端验证
+5. **S5 收尾**：typecheck/build、双端实测（桌面 Chrome + 手机）、文档与提交
+
+## 8. 待确认（回复编号即可）
+
+1. 锁定 = 项目**只读**（禁止一切写入）对吗？还是仅停止自动同步、仍可编辑？
+2. 自动拉取仅限"本地干净"时执行——确认？本地脏时永不自动覆盖
+3. 首期鉴权用**单用户令牌**（服务端配置文件里写死一个 token），注册登录放 S6 之后——OK？
+4. 数据库用 MySQL（需本机/服务器跑个 MySQL，docker-compose 已含）——OK？
+
+---
+
+## 附录 A：与既有架构的关系
+
+- 本地优先不动：本地模式一切照旧，同步是**加在本地之上的镜像层**，不替换 FSAdapter
+- 浏览器内 Git（版本历史）继续服务本地；云端只有"最新版 + 台账"，不做历史快照
+- 手机端（V4）从云端打开后以内存/OPFS 为工作区，同样走同步引擎
+
+## 附录 B：远期（本期不做，留档）
+
+- 增量同步（按 sha256 diff 只传变化文件）、二进制/资料库上云、历史版本快照与回滚
+- 注册登录与多用户、WebDAV/OneDrive 资料库后端、离线编辑队列、分享只读链接
