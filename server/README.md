@@ -42,7 +42,7 @@ sql/schema.sql              建表（5 张：users/projects/project_files/projec
 ## 路线（见方案 §8）
 
 - S1 ✅ 骨架 + 单用户令牌 + health/me + CORS + docker-compose
-- S2 项目 CRUD + state/pull/push（CAS 基线校验 + 自动分叉）
+- S2 ✅ 项目 CRUD + state/pull/push（CAS 基线校验 + 自动分叉）
 - S3 客户端同步引擎（front-end：sync store / 轮询 / 自动拉取 / 手动推送）
 - S4 分叉解决 UI + 首页云端列表 + 多端实测
 - S5 异常路径与收尾

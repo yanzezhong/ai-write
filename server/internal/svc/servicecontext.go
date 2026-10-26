@@ -2,6 +2,8 @@ package svc
 
 import (
 	"log"
+	"os"
+	"strings"
 
 	"github.com/yanzezhong/ai-write/server/internal/config"
 	"github.com/yanzezhong/ai-write/server/internal/model"
@@ -16,8 +18,16 @@ type ServiceContext struct {
 
 func NewServiceContext(c config.Config) *ServiceContext {
 	ctx := &ServiceContext{Config: c}
-	if c.Mongo.Uri != "" {
-		store, err := model.NewStore(c.Mongo.Uri, c.Mongo.Database)
+	uri := c.Mongo.Uri
+	if uri == "" || !strings.HasPrefix(uri, "mongodb") {
+		if env := os.Getenv("AIWRITE_MONGO_URI"); env != "" {
+			uri = env
+		} else {
+			uri = "mongodb://127.0.0.1:27017"
+		}
+	}
+	if uri != "" {
+		store, err := model.NewStore(uri, c.Mongo.Database)
 		if err != nil {
 			log.Printf("[warn] mongo 初始化失败（同步接口暂不可用）: %v", err)
 		} else {

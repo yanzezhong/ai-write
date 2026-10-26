@@ -39,8 +39,29 @@ npm run dev      # 启动开发服务器
 npm run build    # 类型检查 + 生产构建
 ```
 
+## 后端（云同步）进度
+
+- S1 ✅ go-zero 骨架 + 单用户令牌 + CORS + docker-compose
+- S2 ✅ 项目 CRUD + state/pull/push（CAS 基线校验 + 自动分叉）+ 设备上报
+  - 关键文件：`server/internal/logic/*.go`、`server/internal/model/*.go`、`server/internal/sync/fingerprint.go`
+  - 已实测：创建 → push v1 → state/pull → 并发 push 触发自动分叉 → promote 分叉为主线 v3
+  - 运行：`cd server && go run . -f etc/aiwrite-api.yaml`（默认连接本地 MongoDB `:27017`）
+  - Docker 部署：`cd server && docker compose up -d --build`
+
+## 常用命令
+
+```bash
+# 前端
+npm run dev      # 启动开发服务器
+npm run build    # 类型检查 + 生产构建
+
+# 后端
+cd server && go run . -f etc/aiwrite-api.yaml
+cd server && docker compose up -d --build
+```
+
 ## 下一步建议
 
 1. 在浏览器实测「粘贴例文 → 解析四步 → 骨架编辑 → 生成文章」完整链路。
-2. 如无问题，提交当前变更并打 tag / PR。
+2. 前端接入后端同步引擎（`stores/sync.ts` / `services/api.ts` / `WorkspaceView` 状态横幅）。
 3. 处理已记录的浏览器拒绝访问 bug。

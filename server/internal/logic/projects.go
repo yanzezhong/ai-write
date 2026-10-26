@@ -69,7 +69,7 @@ func DeleteProject(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Requ
 			return
 		}
 		if err := ctx.Store.SoftDelete(r.Context(), id); err != nil {
-			writeErr(w, mapErr(err))
+			writeErr(w, mapErr(err), err)
 			return
 		}
 		httpx.OkJson(w, map[string]bool{"ok": true})

@@ -23,7 +23,7 @@ func GetState(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Request) 
 		}
 		p, err := ctx.Store.GetProject(r.Context(), id)
 		if err != nil {
-			writeErr(w, mapErr(err))
+			writeErr(w, mapErr(err), err)
 			return
 		}
 		forks, _ := ctx.Store.ListProjectsWithForks(r.Context(), svc.SingleUserID)
@@ -54,7 +54,7 @@ func Pull(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Request) {
 		}
 		p, err := ctx.Store.GetProject(r.Context(), id)
 		if err != nil {
-			writeErr(w, mapErr(err))
+			writeErr(w, mapErr(err), err)
 			return
 		}
 		files := make([]types.FilePayload, 0, len(p.Files))
@@ -87,7 +87,7 @@ func Push(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Request) {
 
 		target, err := ctx.Store.GetProject(r.Context(), id)
 		if err != nil {
-			writeErr(w, mapErr(err))
+			writeErr(w, mapErr(err), err)
 			return
 		}
 
@@ -162,7 +162,7 @@ func Resolve(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Request) {
 		case "promote":
 			main, err := ctx.Store.PromoteFork(r.Context(), id, forkId)
 			if err != nil {
-				writeErr(w, mapErr(err))
+				writeErr(w, mapErr(err), err)
 				return
 			}
 			_ = ctx.Store.AddVersion(r.Context(), model.VersionEntry{
@@ -172,7 +172,7 @@ func Resolve(ctx *svc.ServiceContext) func(http.ResponseWriter, *http.Request) {
 			httpx.OkJson(w, types.ResolveResp{Version: main.CurrentVersion, Md5: main.CurrentMd5})
 		case "discard":
 			if err := ctx.Store.SoftDelete(r.Context(), forkId); err != nil {
-				writeErr(w, mapErr(err))
+				writeErr(w, mapErr(err), err)
 				return
 			}
 			main, _ := ctx.Store.GetProject(r.Context(), id)
