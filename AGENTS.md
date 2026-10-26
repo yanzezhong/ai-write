@@ -3,9 +3,9 @@
 ## 仓库状态
 
 - 分支：`feat/backend`
-- 最新提交：`7b84a26 feat: V3 一键仿写收尾 + 后端同步`
+- 最新提交：`3b1cef2 docs: 更新 AGENTS.md 最新提交号`
 - 工作目录：`/Users/gongzuozhanghu/Desktop/code/agent-write/front-end`
-- dev server：`npm run dev` 已在 `http://localhost:5173/` 运行（PID 63073/63108）
+- dev server：`npm run dev` 已在 `http://localhost:5173/` 运行
 - 构建：`npm run build` 通过（仅 chunk 体积警告）
 
 ## V3「一键仿写」进度
