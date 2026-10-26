@@ -1,6 +1,6 @@
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import { readFileSync } from 'node:fs'
+import { existsSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 
@@ -10,14 +10,22 @@ import { join } from 'node:path'
 //   CAROOT=%USERPROFILE%\.vite-plugin-mkcert tools\mkcert.exe -key-file ... -cert-file ... localhost 127.0.0.1 ::1 <局域网IP>
 const certDir = join(homedir(), '.vite-plugin-mkcert')
 
+// 新机器 / 未生成证书时自动退回 HTTP，不阻塞启动
+function lanHttps() {
+  const key = join(certDir, 'dev.pem')
+  const cert = join(certDir, 'cert.pem')
+  if (existsSync(key) && existsSync(cert)) {
+    return { key: readFileSync(key), cert: readFileSync(cert) }
+  }
+  console.warn('[vite] 未找到 LAN HTTPS 证书（~/.vite-plugin-mkcert/dev.pem），本次以 HTTP 启动')
+  return undefined
+}
+
 export default defineConfig({
   plugins: [vue()],
   server: {
     port: 5173,
-    https: {
-      key: readFileSync(join(certDir, 'dev.pem')),
-      cert: readFileSync(join(certDir, 'cert.pem')),
-    },
+    https: lanHttps(),
     proxy: {
       // 手机端浏览器直连第三方 API 容易出现网络层错误（iOS WebKit 表现为红字 "Load failed"）。
       // 开发服务器把这些已知供应商转成同源代理，手机只跟 dev server 通信，绕过跨域/证书/拦截问题。
