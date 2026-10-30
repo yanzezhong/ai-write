@@ -36,6 +36,10 @@
             <AppIcon name="layers" :size="16" />
             资料库
           </button>
+          <button class="btn" title="打开云端项目 / 管理分叉" @click="showCloud = true">
+            <AppIcon name="globe" :size="16" />
+            云端项目
+          </button>
         </div>
         <p class="imitate-hint">粘贴一篇喜欢的文章，AI 四步拆解世界观 / 人物 / 文风 / 大纲，再一键生成你的仿写文。</p>
         <p class="hint">
@@ -74,6 +78,7 @@
 
     <NewProjectDialog v-if="showDialog" @close="showDialog = false" />
     <PickExampleDialog v-if="showPick" @close="showPick = false" />
+    <CloudProjectsDialog v-if="showCloud" @close="showCloud = false" />
   </div>
 </template>
 
@@ -83,6 +88,7 @@ import { useRouter } from 'vue-router'
 import AppIcon from '../components/AppIcon.vue'
 import NewProjectDialog from '../components/NewProjectDialog.vue'
 import PickExampleDialog from '../components/PickExampleDialog.vue'
+import CloudProjectsDialog from '../components/CloudProjectsDialog.vue'
 import { formatWords, idbGet, lsGet, lsSet, timeAgo } from '../core/storage'
 import { pickDirectory } from '../services/picker'
 import { useProjectStore } from '../stores/project'
@@ -95,6 +101,7 @@ const sync = useSyncStore()
 
 const showDialog = ref(false)
 const showPick = ref(false)
+const showCloud = ref(false)
 const opening = ref(false)
 const recentProjects = ref<RecentProject[]>(lsGet<RecentProject[]>('recentProjects', []))
 const syncBindings = ref<Record<string, SyncBindingSummary>>(lsGet<Record<string, SyncBindingSummary>>('sync.bindings', {}))

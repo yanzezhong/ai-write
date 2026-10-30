@@ -283,11 +283,15 @@ export const useSyncStore = defineStore('sync', {
         if (res.status === 'noop') {
           this.baseVersion = res.version
           this.baseMd5 = res.md5
+          this.cloudVersion = res.version
+          this.cloudMd5 = res.md5
           this.status = 'synced'
           await this.saveBinding()
         } else if (res.status === 'ok') {
           this.baseVersion = res.version
           this.baseMd5 = res.md5
+          this.cloudVersion = res.version
+          this.cloudMd5 = res.md5
           this.status = 'synced'
           await this.saveBinding()
         } else if (res.status === 'forked' && res.fork) {
@@ -344,6 +348,60 @@ export const useSyncStore = defineStore('sync', {
         }
       } catch (err) {
         this.lastError = err instanceof Error ? err.message : String(err)
+      } finally {
+        this.busy = false
+      }
+    },
+
+    /** 分叉被采用（可能在别的设备/窗口操作）后，把本地工作切回主项目并拉取 */
+    async rebindTo(mainId: string) {
+      this.cloudProjectId = mainId
+      this.mainProjectId = null
+      this.currentForkId = null
+      await this.saveBinding()
+      this.busy = false
+      await this.pull()
+    },
+
+    /**
+     * 从云端打开项目到本地继续工作。
+     * mode: 'demo' 演示副本（内存）；'local' 真实文件夹（选父目录 → 建项目文件夹 → 落盘）。
+     * 拉取内容 + 写 .sync.json 绑定后进入轮询。
+     */
+    async openFromCloud(projectId: string, name: string, mode: 'demo' | 'local') {
+      if (this.busy) return
+      this.busy = true
+      this.lastError = ''
+      try {
+        const cfg = getSyncConfig()
+        if (!cfg.token) throw new Error('请先在设置中配置同步令牌')
+        await api.reportDevice({ deviceKey: cfg.deviceKey, name: cfg.deviceName || '未命名设备' })
+        const res = await api.pull(projectId)
+        const files = Object.fromEntries(res.files.map((f) => [f.path, f.content]))
+        const project = useProjectStore()
+        if (mode === 'demo') {
+          await project.openDemoProject(name, files)
+        } else {
+          const { pickDirectory } = await import('../services/picker')
+          const parent = await pickDirectory()
+          const dirName = name.replace(/[\\/:*?"<>|]/g, '').replace(/\s+/g, ' ').trim().slice(0, 30) || '云端项目'
+          const dir = await parent.getDirectoryHandle(dirName, { create: true })
+          const { WebFSAdapter } = await import('../core/fs')
+          const fs = new WebFSAdapter(dir)
+          await writeProjectFiles(fs, files)
+          await project.openWithHandle(dir)
+        }
+        await writeSyncJson(getFS(), {
+          cloudProjectId: projectId,
+          baseVersion: res.version,
+          baseMd5: res.md5,
+          deviceKey: cfg.deviceKey,
+        })
+        await this.loadBinding()
+        this.startPolling()
+      } catch (err) {
+        this.lastError = err instanceof Error ? err.message : String(err)
+        throw err
       } finally {
         this.busy = false
       }
